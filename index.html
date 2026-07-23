@@ -8,6 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
     <!-- Golden Layout Stylesheets -->
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-base.css" />
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-dark-theme.css" />
@@ -72,6 +75,20 @@
             transition: all 0.2s;
         }
         .fire-card:hover { border-color: #00ffcc; background: #1f242c; }
+        
+        .aqi-interactive-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .aqi-interactive-card:hover {
+            border-color: #ff9900;
+            background: #1f242c;
+        }
+
         .hub-modal {
             display: none;
             position: fixed;
@@ -106,6 +123,11 @@
         .hub-modal-close:hover { color: #ff5555; }
         .hub-modal-body { padding: 20px; overflow-y: auto; color: #fff; }
 
+        /* Leaflet Dark Theme Overrides */
+        .leaflet-container { background: #0d1117 !important; font-family: 'Share Tech Mono', monospace !important; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #161b22 !important; color: #00ffcc !important; border: 1px solid #ff6600; }
+        .leaflet-popup-content { font-size: 0.85rem; }
+
         /* Golden Layout Style Customizations */
         .lm_header { background: #161b22 !important; }
         .lm_tab { background: #21262d !important; color: #8b949e !important; font-family: 'Share Tech Mono', monospace !important; border: 1px solid #30363d !important;}
@@ -135,6 +157,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/dist/goldenlayout.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script src="app.js"></script>
 </body>
