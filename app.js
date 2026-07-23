@@ -1,5 +1,5 @@
 // --- WILDFIREXPLR Core Configuration & State ---
-let mapCenterLat = 39.8283; // Default US Continental Center (Kansas)
+let mapCenterLat = 39.8283; 
 let mapCenterLon = -98.5795;
 let mapZoom = 4;
 let countdownVal = 120;
@@ -15,7 +15,6 @@ let alertSoundEnabled = false;
 let previousAlertCount = 0;
 let alertAudio = null;
 
-// Initialize Web Audio API for alert sirens
 function initAlertSound() {
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -44,7 +43,7 @@ function playAlertSound() {
     }
 }
 
-// --- Golden Layout Structural Grid ---
+// --- Golden Layout Structural Grid (Streamlined without USGS) ---
 const config = {
     settings: { hasHeaders: true, reorderEnabled: true, showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: false },
     content: [{
@@ -54,7 +53,7 @@ const config = {
                 type: 'column',
                 width: 42,
                 content: [
-                    { type: 'component', componentName: 'wildfireMap', title: 'WINDY DYNAMIC RADAR, WIND & FIRE SMOKE TRACKING' },
+                    { type: 'component', componentName: 'wildfireMap', title: 'WINDY INTERACTIVE DYNAMIC FIRE & SMOKE TRACKING' },
                     { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS / IRWIN)' }
                 ]
             },
@@ -62,8 +61,8 @@ const config = {
                 type: 'column',
                 width: 30,
                 content: [
-                    { type: 'component', componentName: 'nwsAlerts', title: 'CRITICAL NWS FIRE WEATHER & HAZARD WARNINGS' },
-                    { type: 'component', componentName: 'fireAnalytics', title: 'REGIONAL ACREAGE & CONTAINMENT METRICS' }
+                    { type: 'component', componentName: 'nwsAlerts', title: 'NWS FIRE WEATHER & RED FLAG WARNING MATRIX' },
+                    { type: 'component', componentName: 'fireAnalytics', title: 'NATIONAL ACREAGE & CONTAINMENT METRICS' }
                 ]
             },
             {
@@ -71,8 +70,7 @@ const config = {
                 width: 28,
                 content: [
                     { type: 'component', componentName: 'satelliteHotspots', title: 'NASA FIRMS SATELLITE THERMAL HOTSPOTS (48HR)' },
-                    { type: 'component', componentName: 'airQualityPanel', title: 'AIRNOW SMOKE & AIR QUALITY MATRIX' },
-                    { type: 'component', componentName: 'hydrologyFeed', title: 'USGS STREAMFLOW & WATERSHED CONDITIONS' }
+                    { type: 'component', componentName: 'airQualityPanel', title: 'NATIONAL MULTI-STATE AIRNOW SMOKE & AQI MATRIX' }
                 ]
             }
         ]
@@ -93,7 +91,6 @@ layout.registerComponent('wildfireMap', function(container) {
                     <option value="satellite">Satellite Imagery</option>
                     <option value="temp">Temperature</option>
                     <option value="rain">Rain Accumulation</option>
-                    <option value="thunder">Thunderstorms</option>
                     <option value="clouds">Cloud Cover</option>
                 </select>
                 <button id="recenterBtn" style="background:#21262d; border:1px solid #ff6600; color:#ff9900; padding:5px 10px; border-radius:4px; cursor:pointer; font-family:'Share Tech Mono'; font-size:0.75rem;"><i class="fa-solid fa-crosshairs"></i> RESET US</button>
@@ -122,7 +119,7 @@ layout.registerComponent('wildfireMap', function(container) {
 });
 
 layout.registerComponent('activeIncidentList', function(container) {
-    container.getElement().html(`<div class="weather-component" id="wildfire-list-target">Querying NIFC WFIGS interagency wildfire network...</div>`);
+    container.getElement().html(`<div class="weather-component" id="wildfire-list-target">Querying NIFC WFIGS interagency nationwide wildfire network...</div>`);
     container.on('open', fetchWildfireData);
 });
 
@@ -130,12 +127,12 @@ layout.registerComponent('nwsAlerts', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="position:relative;">
             <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #30363d; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:0.85rem; color:#ffcc00; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> NWS WARNING MATRIX</div>
+                <div style="font-size:0.85rem; color:#ffcc00; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> NWS FIRE / RED FLAG WARNINGS</div>
                 <button id="soundToggleBtn" onclick="toggleAlertSound()" style="background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 0.7rem;" title="Toggle alert sound">
                     <i class="fa-solid fa-volume-mute"></i> SOUND OFF
                 </button>
             </div>
-            <div id="alerts-container">Scanning national NWS feeds...</div>
+            <div id="alerts-container">Scanning NWS fire hazard warning feeds...</div>
         </div>`);
     container.on('open', fetchNWSAlerts);
 });
@@ -159,8 +156,8 @@ layout.registerComponent('fireAnalytics', function(container) {
 layout.registerComponent('satelliteHotspots', function(container) {
     container.getElement().html(`
         <div class="weather-component">
-            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NATIONAL FIRMS THERMAL HOTSPOTS (48HR)</div>
-            <div id="firms-hotspots" style="max-height:220px; overflow-y:auto;">
+            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NATIONAL FIRMS HOTSPOTS (CLICK COORDS TO MAP)</div>
+            <div id="firms-hotspots" style="max-height:280px; overflow-y:auto;">
                 <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA FIRMS satellite feed...</span>
             </div>
         </div>
@@ -169,18 +166,12 @@ layout.registerComponent('satelliteHotspots', function(container) {
 });
 
 layout.registerComponent('airQualityPanel', function(container) {
-    container.getElement().html(`<div class="weather-component" id="aqi-container-target">Interrogating AirNow smoke sensor frames...</div>`);
+    container.getElement().html(`<div class="weather-component" id="aqi-container-target">Interrogating AirNow multi-state observation sensors...</div>`);
     container.on('open', fetchAirQualityData);
-});
-
-layout.registerComponent('hydrologyFeed', function(container) {
-    container.getElement().html(`<div class="weather-component" id="hydro-station-list">Interrogating USGS National Water Information System...</div>`);
-    container.on('open', fetchUSGSHydrology);
 });
 
 layout.init();
 
-// Initialize sound on first user touch
 document.addEventListener('click', () => { if (!alertAudio) initAlertSound(); }, { once: true });
 
 function toggleAlertSound() {
@@ -199,20 +190,16 @@ function toggleAlertSound() {
     }
 }
 
-// --- Data Fetching & Processing Modules ---
-
 function fetchAllData() {
     fetchWildfireData();
     fetchNWSAlerts();
     fetchAirQualityData();
-    fetchUSGSHydrology();
 }
 
 function fetchWildfireData() {
-    // Bounding box for US Nationwide or zoomed geographic extent
-    const xmin = -125.0, ymin = 24.0, xmax = -66.0, ymax = 50.0;
-    const wfigsUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=1%3D1&geometry=${xmin}%2C${ymin}%2C${xmax}%2C${ymax}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=IncidentName,IncidentTypeCategory,IncidentSize,PercentContained,FireDiscoveryDateTime,POOState,POOCounty,IncidentID,ComplexName,UniqueFireIdentifier&returnGeometry=true&f=json`;
-    const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/${xmin},${ymin},${xmax},${ymax}/1`;
+    // Broad nationwide query for WFIGS active incidents
+    const wfigsUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,IncidentTypeCategory,IncidentSize,PercentContained,FireDiscoveryDateTime,POOState,POOCounty,IncidentID,ComplexName,UniqueFireIdentifier&returnGeometry=true&f=json`;
+    const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/-125,24,-66,50/1`;
 
     const wfigsPromise = fetch(wfigsUrl).then(r => r.json()).catch(() => null);
     const firmsPromise = fetch(firmsUrl).then(r => r.text()).catch(() => null);
@@ -221,7 +208,7 @@ function fetchWildfireData() {
         const feats = (wfigsData && wfigsData.features) ? wfigsData.features : [];
         const incidents = feats
             .map(f => ({ attributes: f.attributes, geometry: f.geometry }))
-            .filter(item => item.attributes.IncidentTypeCategory !== 'RX'); // Exclude prescribed burns
+            .filter(item => item.attributes.IncidentTypeCategory !== 'RX');
 
         globalWildfireCache = {};
         let listHtml = '';
@@ -229,7 +216,6 @@ function fetchWildfireData() {
         let totalContainedSum = 0;
         let containedCount = 0;
 
-        // Sort descending by size
         incidents.sort((a, b) => (b.attributes.IncidentSize || 0) - (a.attributes.IncidentSize || 0));
 
         incidents.forEach((item, idx) => {
@@ -249,8 +235,11 @@ function fetchWildfireData() {
                 containedCount++;
             }
 
+            const lat = (item.geometry && item.geometry.y) ? item.geometry.y : 39.8;
+            const lon = (item.geometry && item.geometry.x) ? item.geometry.x : -98.5;
+
             listHtml += `
-                <div class="fire-card" onclick="openFireDetails('${fireKey}')" ondblclick="zoomToFire(${attr.geometry ? attr.geometry.y : 39.8}, ${attr.geometry ? attr.geometry.x : -98.5})">
+                <div class="fire-card" onclick="openFireDetails('${fireKey}')" ondblclick="zoomToCoords(${lat}, ${lon}, 10)">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="color:#ff9900; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire"></i> ${name.toUpperCase()} (${state})</span>
                         <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
@@ -270,10 +259,7 @@ function fetchWildfireData() {
         $('#stat-acres').text(Math.round(totalAcres).toLocaleString());
         $('#stat-contained').text(containedCount > 0 ? Math.round(totalContainedSum / containedCount) + '%' : 'N/A');
 
-        // Render Chart
         renderWildfireChart(incidents.slice(0, 8));
-
-        // Process FIRMS Hotspots
         parseFirmsHotspots(firmsCsv);
     }).catch(err => {
         console.error("Wildfire feed error:", err);
@@ -281,11 +267,11 @@ function fetchWildfireData() {
     });
 }
 
-function zoomToFire(lat, lon) {
+function zoomToCoords(lat, lon, zoomLevel) {
     if (!lat || !lon) return;
     mapCenterLat = lat;
     mapCenterLon = lon;
-    mapZoom = 10;
+    mapZoom = zoomLevel || 10;
     const iframe = document.getElementById('windyIframe');
     if (iframe) {
         iframe.src = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=f&metricWind=mph&zoom=${mapZoom}&overlay=fires&product=gfs&level=surface&lat=${mapCenterLat}&lon=${mapCenterLon}`;
@@ -306,7 +292,7 @@ function openFireDetails(key) {
         <div><strong>Category:</strong> ${attr.IncidentTypeCategory || 'WF'}</div>
     </div>`;
     body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
-        <i class="fa-solid fa-satellite-dish"></i> IRWIN / WFIGS synchronized data record. Double-click the incident card in the dashboard list to instantly geolocate and zoom the live tactical radar map coordinates to this fire perimeter.
+        <i class="fa-solid fa-satellite-dish"></i> IRWIN / WFIGS synchronized data record. Double-click the incident card in the list to instantly zoom the map to this fire's location.
     </div>`;
 
     openFloatingModal(`WILDFIRE INCIDENT MATRIX: ${attr.IncidentName || 'DETAILS'}`, body);
@@ -364,7 +350,7 @@ function parseFirmsHotspots(csvText) {
     const timeIdx = headers.indexOf('acq_time');
     const confIdx = headers.indexOf('confidence');
 
-    const hotspots = lines.slice(1, 12).map(line => {
+    const hotspots = lines.slice(1, 15).map(line => {
         const cols = line.split(',');
         return {
             lat: parseFloat(cols[latIdx]),
@@ -379,8 +365,10 @@ function parseFirmsHotspots(csvText) {
     hotspots.forEach(h => {
         const timeStr = (h.time || '').padStart(4, '0');
         html += `
-            <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:5px 8px; margin-bottom:4px; font-size:0.7rem; display:flex; justify-content:space-between;">
-                <span style="color:#ff9900; font-weight:bold;">${h.lat.toFixed(2)}, ${h.lon.toFixed(2)}</span>
+            <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px 8px; margin-bottom:5px; font-size:0.72rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#ff9900; font-weight:bold; cursor:pointer; text-decoration:underline;" onclick="zoomToCoords(${h.lat}, ${h.lon}, 11)" title="Click to view hotspot area on map">
+                    <i class="fa-solid fa-location-dot"></i> ${h.lat.toFixed(2)}, ${h.lon.toFixed(2)}
+                </span>
                 <span style="color:#8b949e;">${h.date} ${timeStr.slice(0,2)}:${timeStr.slice(2)} UTC · Conf: ${h.confidence}</span>
             </div>`;
     });
@@ -393,11 +381,11 @@ function fetchNWSAlerts() {
         .then(res => res.json())
         .then(data => {
             const features = data.features || [];
-            // Filter specifically for fire weather or severe weather warnings
+            // Concentrated strictly on Fire Weather Warnings and Red Flag Warnings nationwide
             const fireAlerts = features.filter(f => {
-                const event = f.properties.event || '';
-                return event.includes('Fire Weather') || event.includes('Red Flag') || event.includes('Warning');
-            }).slice(0, 15);
+                const event = (f.properties.event || '').toLowerCase();
+                return event.includes('fire weather') || event.includes('red flag');
+            }).slice(0, 20);
 
             globalAlertsCache = {};
             let html = '';
@@ -414,7 +402,7 @@ function fetchNWSAlerts() {
                         </div>`;
                 });
             } else {
-                html = "<span style='color:#00ff55; font-size:0.8rem;'>✓ NO ACTIVE FIRE WEATHER/RED FLAG WARNINGS NATIONWIDE</span>";
+                html = "<span style='color:#00ff55; font-size:0.8rem;'>✓ NO ACTIVE FIRE WEATHER OR RED FLAG WARNINGS NATIONWIDE</span>";
             }
 
             if (alertCount > previousAlertCount && alertCount > 0) playAlertSound();
@@ -430,51 +418,55 @@ function openAlertDetails(id) {
     let body = `<div style="color:#ff5555; font-weight:bold; margin-bottom:10px; border-bottom:1px solid #30363d; padding-bottom:8px;">${alert.headline || alert.event}</div>`;
     body += `<div style="color:#8b949e; margin-bottom:8px;"><strong>Affected Areas:</strong> ${alert.areaDesc}</div>`;
     body += `<div style="color:#fff; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #21262d; font-family:monospace; font-size:0.85rem; white-space:pre-wrap;">${alert.description}</div>`;
-    openFloatingModal("NWS ADVISORY DETAILS", body);
+    openFloatingModal("NWS FIRE ADVISORY DETAILS", body);
 }
 
 function fetchAirQualityData() {
-    // AirNow national sample query around Kansas center
-    const url = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${mapCenterLat}&longitude=${mapCenterLon}&distance=50&API_KEY=${AIRNOW_API_KEY}`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> AIR QUALITY & SMOKE MATRIX</div>`;
-            if (!data || data.length === 0) {
-                html += `<div style="color:#8b949e; font-size:0.75rem;">No active particulate sensors reporting in sector.</div>`;
-            } else {
-                html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">`;
+    // Multi-state representative monitoring coordinates covering Western, Central, and Eastern US fire/smoke zones
+    const sampleCoords = [
+        { name: "California (West)", lat: 38.5816, lon: -121.4944 },
+        { name: "Colorado (Rockies)", lat: 39.7392, lon: -104.9903 },
+        { name: "Texas (South)", lat: 30.2672, lon: -97.7431 },
+        { name: "New York (East)", lat: 40.7128, lon: -74.0060 }
+    ];
+
+    let promises = sampleCoords.map(loc => 
+        fetch(`https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${loc.lat}&longitude=${loc.lon}&distance=75&API_KEY=${AIRNOW_API_KEY}`)
+            .then(res => res.json())
+            .catch(() => [])
+    );
+
+    Promise.all(promises).then(results => {
+        let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> MULTI-STATE AIRNOW SMOKE & AQI MONITORING</div>`;
+        html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
+        
+        let hasData = false;
+        results.forEach((data, index) => {
+            if (data && data.length > 0) {
+                hasData = true;
+                const regionName = sampleCoords[index].name;
+                html += `<div style="background:#161b22; border:1px solid #30363d; padding:8px; border-radius:3px;">`;
+                html += `<div style="font-size:0.72rem; color:#00ffcc; font-weight:bold; margin-bottom:4px;">${regionName}</div>`;
+                html += `<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:4px;">`;
                 data.forEach(p => {
-                    const color = p.AQI > 100 ? '#ff0000' : p.AQI > 50 ? '#ffcc00' : '#00ff55';
+                    const color = p.AQI > 150 ? '#ff0000' : p.AQI > 100 ? '#ff7e00' : p.AQI > 50 ? '#ffcc00' : '#00ff55';
                     html += `
-                        <div style="background:#161b22; border:1px solid #30363d; padding:6px; text-align:center; border-radius:3px;">
-                            <div style="font-size:0.65rem; color:#8b949e;">${p.ParameterName}</div>
-                            <div style="font-size:1.3rem; color:${color}; font-weight:bold;">${p.AQI}</div>
-                            <div style="font-size:0.6rem; color:${color};">${p.Category ? p.Category.Name : ''}</div>
+                        <div style="background:#0d1117; border:1px solid #21262d; padding:4px; text-align:center; border-radius:2px;">
+                            <div style="font-size:0.6rem; color:#8b949e;">${p.ParameterName}</div>
+                            <div style="font-size:1.1rem; color:${color}; font-weight:bold;">${p.AQI}</div>
+                            <div style="font-size:0.55rem; color:${color};">${p.Category ? p.Category.Name : ''}</div>
                         </div>`;
                 });
-                html += `</div>`;
+                html += `</div></div>`;
             }
-            $('#aqi-container-target').html(html);
-        })
-        .catch(() => $('#aqi-container-target').html('<span style="color:#ff5555; font-size:0.8rem;">AirNow feed unavailable</span>'));
-}
+        });
 
-function fetchUSGSHydrology() {
-    // Sample USGS key hydrological stations monitoring watershed flow
-    const gauges = [
-        { id: "09380000", name: "Colorado River near Grand Canyon, AZ" },
-        { id: "11447650", name: "Sacramento River at Sacramento, CA" }
-    ];
-    let html = '<div style="font-size:0.75rem; color:#00ffcc; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-water"></i> WATERSHED STREAMFLOW CONDITIONS</div>';
-    gauges.forEach(g => {
-        html += `
-            <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px 8px; margin-bottom:6px;">
-                <div style="font-weight:bold; color:#fff; font-size:0.78rem;">${g.name}</div>
-                <div style="color:#00ffcc; font-size:0.7rem; margin-top:2px;">USGS Gage-${g.id} · Normal Baseflow Range</div>
-            </div>`;
-    });
-    $('#hydro-station-list').html(html);
+        if (!hasData) {
+            html += `<div style="color:#8b949e; font-size:0.75rem;">No active multi-state particulate feeds responding.</div>`;
+        }
+        html += `</div>`;
+        $('#aqi-container-target').html(html);
+    }).catch(() => $('#aqi-container-target').html('<span style="color:#ff5555; font-size:0.8rem;">AirNow multi-state feed unavailable</span>'));
 }
 
 function openFloatingModal(title, textHTML) {
