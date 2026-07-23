@@ -1,7 +1,4 @@
 // --- WILDFIREXPLR Core Configuration & State ---
-let mapCenterLat = 39.8283; 
-let mapCenterLon = -98.5795;
-let mapZoom = 4;
 let countdownVal = 120;
 
 const AIRNOW_API_KEY = "E5AFEF36-80F6-4A42-AE38-F3C56E3AEAC4"; 
@@ -14,6 +11,9 @@ let wildfireChartInstance = null;
 let alertSoundEnabled = false;
 let previousAlertCount = 0;
 let alertAudio = null;
+
+let activeLeafletMap = null;
+let mapMarkersGroup = null;
 
 function initAlertSound() {
     try {
@@ -43,7 +43,7 @@ function playAlertSound() {
     }
 }
 
-// --- Golden Layout Structural Grid (Streamlined without USGS) ---
+// --- Golden Layout Structural Grid ---
 const config = {
     settings: { hasHeaders: true, reorderEnabled: true, showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: false },
     content: [{
@@ -53,7 +53,7 @@ const config = {
                 type: 'column',
                 width: 42,
                 content: [
-                    { type: 'component', componentName: 'wildfireMap', title: 'WINDY INTERACTIVE DYNAMIC FIRE & SMOKE TRACKING' },
+                    { type: 'component', componentName: 'wildfireMap', title: 'NATIVE ACTIVE WILDFIRE MAP MATRIX' },
                     { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS / IRWIN)' }
                 ]
             },
@@ -83,39 +83,24 @@ const layout = new GoldenLayout(config, '#desktopLayoutContainer');
 layout.registerComponent('wildfireMap', function(container) {
     container.getElement().html(`
         <div style="position:relative; width:100%; height:100%; background:#0d1117;">
-            <div style="position:absolute; top:12px; right:12px; z-index:999; display:flex; gap:6px;">
-                <select id="windyLayerSelect" style="background: rgba(33, 38, 45, 0.95); color: #ff9900; border: 1px solid #ff6600; padding: 5px 8px; font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; border-radius: 4px; cursor: pointer;">
-                    <option value="fires" selected>Active Fires / Thermal</option>
-                    <option value="wind">Wind Streamlines</option>
-                    <option value="radar">Weather Radar</option>
-                    <option value="satellite">Satellite Imagery</option>
-                    <option value="temp">Temperature</option>
-                    <option value="rain">Rain Accumulation</option>
-                    <option value="clouds">Cloud Cover</option>
-                </select>
-                <button id="recenterBtn" style="background:#21262d; border:1px solid #ff6600; color:#ff9900; padding:5px 10px; border-radius:4px; cursor:pointer; font-family:'Share Tech Mono'; font-size:0.75rem;"><i class="fa-solid fa-crosshairs"></i> RESET US</button>
-            </div>
-            <iframe id="windyIframe" src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=f&metricWind=mph&zoom=${mapZoom}&overlay=fires&product=gfs&level=surface&lat=${mapCenterLat}&lon=${mapCenterLon}" style="width:100%; height:100%; border:none;"></iframe>
+            <div id="leafletMapContainer" style="width:100%; height:100%;"></div>
         </div>
     `);
     
     setTimeout(() => {
-        const select = container.getElement().find('#windyLayerSelect');
-        const iframe = container.getElement().find('#windyIframe')[0];
-        
-        select.on('change', function() {
-            const layer = this.value;
-            iframe.src = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=f&metricWind=mph&zoom=${mapZoom}&overlay=${layer}&product=gfs&level=surface&lat=${mapCenterLat}&lon=${mapCenterLon}`;
-        });
+        if (!activeLeafletMap) {
+            activeLeafletMap = L.map('leafletMapContainer', { zoomControl: false }).setView([39.8283, -98.5795], 4);
+            L.control.zoom({ position: 'bottomright' }).addTo(activeLeafletMap);
 
-        container.getElement().find('#recenterBtn').on('click', function() {
-            mapCenterLat = 39.8283;
-            mapCenterLon = -98.5795;
-            mapZoom = 4;
-            iframe.src = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=f&metricWind=mph&zoom=${mapZoom}&overlay=${select.val()}&product=gfs&level=surface&lat=${mapCenterLat}&lon=${mapCenterLon}`;
-            fetchAllData();
-        });
-    }, 200);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 18,
+                attribution: '&copy; OpenStreetMap contributors & CARTO'
+            }).addTo(activeLeafletMap);
+
+            mapMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
+        }
+        fetchAllData();
+    }, 250);
 });
 
 layout.registerComponent('activeIncidentList', function(container) {
@@ -197,7 +182,7 @@ function fetchAllData() {
 }
 
 function fetchWildfireData() {
-    // Broad nationwide query for WFIGS active incidents
+    // Authoritative NIFC WFIGS active incident feature server endpoint
     const wfigsUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,IncidentTypeCategory,IncidentSize,PercentContained,FireDiscoveryDateTime,POOState,POOCounty,IncidentID,ComplexName,UniqueFireIdentifier&returnGeometry=true&f=json`;
     const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/-125,24,-66,50/1`;
 
@@ -218,6 +203,8 @@ function fetchWildfireData() {
 
         incidents.sort((a, b) => (b.attributes.IncidentSize || 0) - (a.attributes.IncidentSize || 0));
 
+        if (mapMarkersGroup) mapMarkersGroup.clearLayers();
+
         incidents.forEach((item, idx) => {
             const attr = item.attributes;
             const fireKey = `fire-${idx}`;
@@ -235,8 +222,29 @@ function fetchWildfireData() {
                 containedCount++;
             }
 
-            const lat = (item.geometry && item.geometry.y) ? item.geometry.y : 39.8;
-            const lon = (item.geometry && item.geometry.x) ? item.geometry.x : -98.5;
+            const lat = (item.geometry && item.geometry.y) ? item.geometry.y : null;
+            const lon = (item.geometry && item.geometry.x) ? item.geometry.x : null;
+
+            if (lat && lon && activeLeafletMap) {
+                const marker = L.circleMarker([lat, lon], {
+                    radius: 6,
+                    color: '#ff6600',
+                    fillColor: '#ff9900',
+                    fillOpacity: 0.8,
+                    weight: 1
+                });
+
+                marker.bindPopup(`
+                    <div style="font-family:'Share Tech Mono';">
+                        <strong style="color:#ff9900;">${name.toUpperCase()} (${state})</strong><br>
+                        Size: ${size} acres<br>
+                        Containment: ${contained}<br>
+                        County: ${county || 'N/A'}<br>
+                        <a href="javascript:void(0)" onclick="openFireDetails('${fireKey}')" style="color:#00ffcc; text-decoration:underline;">View Details Matrix</a>
+                    </div>
+                `);
+                mapMarkersGroup.addLayer(marker);
+            }
 
             listHtml += `
                 <div class="fire-card" onclick="openFireDetails('${fireKey}')" ondblclick="zoomToCoords(${lat}, ${lon}, 10)">
@@ -268,14 +276,8 @@ function fetchWildfireData() {
 }
 
 function zoomToCoords(lat, lon, zoomLevel) {
-    if (!lat || !lon) return;
-    mapCenterLat = lat;
-    mapCenterLon = lon;
-    mapZoom = zoomLevel || 10;
-    const iframe = document.getElementById('windyIframe');
-    if (iframe) {
-        iframe.src = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=f&metricWind=mph&zoom=${mapZoom}&overlay=fires&product=gfs&level=surface&lat=${mapCenterLat}&lon=${mapCenterLon}`;
-    }
+    if (!lat || !lon || !activeLeafletMap) return;
+    activeLeafletMap.setView([lat, lon], zoomLevel || 11);
 }
 
 function openFireDetails(key) {
@@ -292,7 +294,7 @@ function openFireDetails(key) {
         <div><strong>Category:</strong> ${attr.IncidentTypeCategory || 'WF'}</div>
     </div>`;
     body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
-        <i class="fa-solid fa-satellite-dish"></i> IRWIN / WFIGS synchronized data record. Double-click the incident card in the list to instantly zoom the map to this fire's location.
+        <i class="fa-solid fa-satellite-dish"></i> IRWIN / WFIGS synchronized data record. Double-click the incident card in the list to instantly center the map to this fire's location.
     </div>`;
 
     openFloatingModal(`WILDFIRE INCIDENT MATRIX: ${attr.IncidentName || 'DETAILS'}`, body);
@@ -381,7 +383,6 @@ function fetchNWSAlerts() {
         .then(res => res.json())
         .then(data => {
             const features = data.features || [];
-            // Concentrated strictly on Fire Weather Warnings and Red Flag Warnings nationwide
             const fireAlerts = features.filter(f => {
                 const event = (f.properties.event || '').toLowerCase();
                 return event.includes('fire weather') || event.includes('red flag');
@@ -422,7 +423,6 @@ function openAlertDetails(id) {
 }
 
 function fetchAirQualityData() {
-    // Multi-state representative monitoring coordinates covering Western, Central, and Eastern US fire/smoke zones
     const sampleCoords = [
         { name: "California (West)", lat: 38.5816, lon: -121.4944 },
         { name: "Colorado (Rockies)", lat: 39.7392, lon: -104.9903 },
@@ -437,7 +437,7 @@ function fetchAirQualityData() {
     );
 
     Promise.all(promises).then(results => {
-        let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> MULTI-STATE AIRNOW SMOKE & AQI MONITORING</div>`;
+        let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> MULTI-STATE AIRNOW SMOKE & AQI MONITORING (CLICK TO VIEW)</div>`;
         html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
         
         let hasData = false;
@@ -450,8 +450,9 @@ function fetchAirQualityData() {
                 html += `<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:4px;">`;
                 data.forEach(p => {
                     const color = p.AQI > 150 ? '#ff0000' : p.AQI > 100 ? '#ff7e00' : p.AQI > 50 ? '#ffcc00' : '#00ff55';
+                    const payloadString = encodeURIComponent(JSON.stringify({ region: regionName, parameter: p.ParameterName, aqi: p.AQI, category: p.Category ? p.Category.Name : 'N/A', site: p.ReportingArea || 'Unknown Sensor' }));
                     html += `
-                        <div style="background:#0d1117; border:1px solid #21262d; padding:4px; text-align:center; border-radius:2px;">
+                        <div class="aqi-interactive-card" style="text-align:center; border-radius:2px;" onclick="openAQIDetails('${payloadString}')">
                             <div style="font-size:0.6rem; color:#8b949e;">${p.ParameterName}</div>
                             <div style="font-size:1.1rem; color:${color}; font-weight:bold;">${p.AQI}</div>
                             <div style="font-size:0.55rem; color:${color};">${p.Category ? p.Category.Name : ''}</div>
@@ -467,6 +468,21 @@ function fetchAirQualityData() {
         html += `</div>`;
         $('#aqi-container-target').html(html);
     }).catch(() => $('#aqi-container-target').html('<span style="color:#ff5555; font-size:0.8rem;">AirNow multi-state feed unavailable</span>'));
+}
+
+function openAQIDetails(encodedStr) {
+    const info = JSON.parse(decodeURIComponent(encodedStr));
+    let body = `<div style="color:#ff9900; font-weight:bold; font-size:1.1rem; margin-bottom:10px; border-bottom:1px solid #30363d; padding-bottom:8px;">Air Quality Monitor Report: ${info.region}</div>`;
+    body += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px; font-size:0.85rem;">
+        <div><strong>Reporting Area / Sensor:</strong> ${info.site}</div>
+        <div><strong>Pollutant Parameter:</strong> ${info.parameter}</div>
+        <div><strong>AQI Index Value:</strong> <span style="color:#ff6600; font-weight:bold;">${info.aqi}</span></div>
+        <div><strong>Air Quality Category:</strong> ${info.category}</div>
+    </div>`;
+    body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
+        <i class="fa-solid fa-wind"></i> This metric is pulled directly from AirNow regional reporting sensor arrays monitoring atmospheric particle pollution and smoke density across ${info.region}.
+    </div>`;
+    openFloatingModal(`AQI TELEMETRY: ${info.parameter} (${info.region})`, body);
 }
 
 function openFloatingModal(title, textHTML) {
