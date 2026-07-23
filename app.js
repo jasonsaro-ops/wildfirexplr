@@ -6,7 +6,7 @@ const FIRMS_MAP_KEY = "215020163103e2209b2fb8253d20b037";
 
 let globalWildfireCache = {};
 let globalAlertsCache = {};
-let globalAQICache = {};
+let mapMarkers = {}; // Object to store FIRMS active map marker references
 let wildfireChartInstance = null;
 let alertSoundEnabled = false;
 let previousAlertCount = 0;
@@ -53,15 +53,15 @@ const config = {
                 type: 'column',
                 width: 42,
                 content: [
-                    { type: 'component', componentName: 'wildfireMap', title: 'NATIVE ACTIVE WILDFIRE MAP MATRIX' },
-                    { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS / IRWIN)' }
+                    { type: 'component', componentName: 'wildfireMap', title: 'NASA FIRMS SATELLITE ACTIVE FIRE MAP' },
+                    { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS)' }
                 ]
             },
             {
                 type: 'column',
                 width: 30,
                 content: [
-                    { type: 'component', componentName: 'nwsAlerts', title: 'NWS FIRE WEATHER & RED FLAG WARNING MATRIX' },
+                    { type: 'component', componentName: 'nwsAlerts', title: 'NWS FIRE WEATHER WARNING MATRIX' },
                     { type: 'component', componentName: 'fireAnalytics', title: 'NATIONAL ACREAGE & CONTAINMENT METRICS' }
                 ]
             },
@@ -69,8 +69,8 @@ const config = {
                 type: 'column',
                 width: 28,
                 content: [
-                    { type: 'component', componentName: 'satelliteHotspots', title: 'NASA FIRMS SATELLITE THERMAL HOTSPOTS (48HR)' },
-                    { type: 'component', componentName: 'airQualityPanel', title: 'NATIONAL MULTI-STATE AIRNOW SMOKE & AQI MATRIX' }
+                    { type: 'component', componentName: 'satelliteHotspots', title: 'NASA FIRMS SATELLITE THERMAL HOTSPOTS (LIVE)' },
+                    { type: 'component', componentName: 'airQualityPanel', title: 'NATIONAL AIRNOW SMOKE & AQI METRICS' }
                 ]
             }
         ]
@@ -105,7 +105,7 @@ layout.registerComponent('wildfireMap', function(container) {
 
 layout.registerComponent('activeIncidentList', function(container) {
     container.getElement().html(`<div class="weather-component" id="wildfire-list-target">Querying NIFC WFIGS interagency nationwide wildfire network...</div>`);
-    container.on('open', fetchWildfireData);
+    container.on('open', fetchWFIGSData);
 });
 
 layout.registerComponent('nwsAlerts', function(container) {
@@ -126,33 +126,37 @@ layout.registerComponent('fireAnalytics', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="display:flex; flex-direction:column; gap:10px;">
             <div id="fire-summary-stats" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
-                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">TOTAL FIRES</div><div id="stat-count" style="font-size:1.2rem; color:#ff6600; font-weight:bold;">--</div></div>
-                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">ACREAGE</div><div id="stat-acres" style="font-size:1.2rem; color:#ff6600; font-weight:bold;">--</div></div>
-                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">CONTAINED</div><div id="stat-contained" style="font-size:1.2rem; color:#00ff55; font-weight:bold;">--</div></div>
+                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">TRACKED FIRES</div><div id="stat-count" style="font-size:1.2rem; color:#ff6600; font-weight:bold;">--</div></div>
+                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">ACREAGE BURNED</div><div id="stat-acres" style="font-size:1.2rem; color:#ff6600; font-weight:bold;">--</div></div>
+                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">AVG CONTAINED</div><div id="stat-contained" style="font-size:1.2rem; color:#00ff55; font-weight:bold;">--</div></div>
             </div>
             <div style="min-height:180px; position:relative; background:#161b22; border: 1px solid #30363d; border-radius:4px; padding:10px;">
                 <canvas id="wildfireChart"></canvas>
             </div>
         </div>
     `);
-    container.on('open', fetchWildfireData);
+    container.on('open', fetchWFIGSData);
 });
 
 layout.registerComponent('satelliteHotspots', function(container) {
     container.getElement().html(`
         <div class="weather-component">
-            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NATIONAL FIRMS HOTSPOTS (CLICK COORDS TO MAP)</div>
-            <div id="firms-hotspots" style="max-height:280px; overflow-y:auto;">
+            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NATIONAL FIRMS HOTSPOTS (CLICK TO CENTER ON MAP)</div>
+            <div id="firms-hotspots" style="display:flex; flex-direction:column; gap:6px;">
                 <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA FIRMS satellite feed...</span>
             </div>
         </div>
     `);
-    container.on('open', fetchWildfireData);
+    container.on('open', fetchFIRMSData);
 });
 
 layout.registerComponent('airQualityPanel', function(container) {
     container.getElement().html(`<div class="weather-component" id="aqi-container-target">Interrogating AirNow multi-state observation sensors...</div>`);
     container.on('open', fetchAirQualityData);
+});
+
+layout.on('stateChanged', () => {
+    if (activeLeafletMap) activeLeafletMap.invalidateSize();
 });
 
 layout.init();
@@ -176,108 +180,187 @@ function toggleAlertSound() {
 }
 
 function fetchAllData() {
-    fetchWildfireData();
+    fetchFIRMSData();
+    fetchWFIGSData();
     fetchNWSAlerts();
     fetchAirQualityData();
 }
 
-function fetchWildfireData() {
-    // Authoritative NIFC WFIGS active incident feature server endpoint
-    const wfigsUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=1%3D1&outFields=IncidentName,IncidentTypeCategory,IncidentSize,PercentContained,FireDiscoveryDateTime,POOState,POOCounty,IncidentID,ComplexName,UniqueFireIdentifier&returnGeometry=true&f=json`;
+// --- NASA LANCE FIRMS API Map & Hotspots Handler ---
+function fetchFIRMSData() {
+    // Queries the Continental US bounding box
     const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/-125,24,-66,50/1`;
 
-    const wfigsPromise = fetch(wfigsUrl).then(r => r.json()).catch(() => null);
-    const firmsPromise = fetch(firmsUrl).then(r => r.text()).catch(() => null);
-
-    Promise.all([wfigsPromise, firmsPromise]).then(([wfigsData, firmsCsv]) => {
-        const feats = (wfigsData && wfigsData.features) ? wfigsData.features : [];
-        const incidents = feats
-            .map(f => ({ attributes: f.attributes, geometry: f.geometry }))
-            .filter(item => item.attributes.IncidentTypeCategory !== 'RX');
-
-        globalWildfireCache = {};
-        let listHtml = '';
-        let totalAcres = 0;
-        let totalContainedSum = 0;
-        let containedCount = 0;
-
-        incidents.sort((a, b) => (b.attributes.IncidentSize || 0) - (a.attributes.IncidentSize || 0));
-
-        if (mapMarkersGroup) mapMarkersGroup.clearLayers();
-
-        incidents.forEach((item, idx) => {
-            const attr = item.attributes;
-            const fireKey = `fire-${idx}`;
-            globalWildfireCache[fireKey] = attr;
-
-            const name = attr.IncidentName || attr.ComplexName || 'Unnamed Incident';
-            const size = attr.IncidentSize ? Math.round(attr.IncidentSize).toLocaleString() : 'Unknown';
-            const contained = attr.PercentContained !== null && attr.PercentContained !== undefined ? attr.PercentContained + '%' : 'N/A';
-            const state = attr.POOState || 'US';
-            const county = attr.POOCounty || '';
-
-            if (attr.IncidentSize) totalAcres += attr.IncidentSize;
-            if (attr.PercentContained !== null && attr.PercentContained !== undefined) {
-                totalContainedSum += attr.PercentContained;
-                containedCount++;
+    fetch(firmsUrl)
+        .then(res => res.text())
+        .then(csvText => {
+            const container = $('#firms-hotspots');
+            if (!csvText || csvText.startsWith('Error') || csvText.trim().split('\n').length < 2) {
+                container.html('<span style="color:#ff5555; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> FIRMS satellite feed unavailable or empty at this time.</span>');
+                return;
             }
 
-            const lat = (item.geometry && item.geometry.y) ? item.geometry.y : null;
-            const lon = (item.geometry && item.geometry.x) ? item.geometry.x : null;
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',');
+            const latIdx = headers.indexOf('latitude');
+            const lonIdx = headers.indexOf('longitude');
+            const dateIdx = headers.indexOf('acq_date');
+            const timeIdx = headers.indexOf('acq_time');
+            const confIdx = headers.indexOf('confidence');
+            const frpIdx = headers.indexOf('frp');
+            const satIdx = headers.indexOf('satellite');
 
-            if (lat && lon && activeLeafletMap) {
-                const marker = L.circleMarker([lat, lon], {
-                    radius: 6,
-                    color: '#ff6600',
-                    fillColor: '#ff9900',
-                    fillOpacity: 0.8,
-                    weight: 1
-                });
+            let hotspots = lines.slice(1).map((line, idx) => {
+                const cols = line.split(',');
+                return {
+                    id: `firms-${idx}`,
+                    lat: parseFloat(cols[latIdx]),
+                    lon: parseFloat(cols[lonIdx]),
+                    date: cols[dateIdx],
+                    time: cols[timeIdx],
+                    confidence: cols[confIdx] || 'N/A',
+                    frp: parseFloat(cols[frpIdx]) || 0,
+                    sat: cols[satIdx] || 'Unknown'
+                };
+            }).filter(h => !isNaN(h.lat));
 
-                marker.bindPopup(`
-                    <div style="font-family:'Share Tech Mono';">
-                        <strong style="color:#ff9900;">${name.toUpperCase()} (${state})</strong><br>
-                        Size: ${size} acres<br>
-                        Containment: ${contained}<br>
-                        County: ${county || 'N/A'}<br>
-                        <a href="javascript:void(0)" onclick="openFireDetails('${fireKey}')" style="color:#00ffcc; text-decoration:underline;">View Details Matrix</a>
-                    </div>
-                `);
-                mapMarkersGroup.addLayer(marker);
-            }
+            // Sort by Fire Radiative Power (intensity)
+            hotspots.sort((a, b) => b.frp - a.frp);
+            
+            if (mapMarkersGroup) mapMarkersGroup.clearLayers();
+            mapMarkers = {};
 
-            listHtml += `
-                <div class="fire-card" onclick="openFireDetails('${fireKey}')" ondblclick="zoomToCoords(${lat}, ${lon}, 10)">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#ff9900; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire"></i> ${name.toUpperCase()} (${state})</span>
-                        <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
-                    </div>
-                    <div style="color:#8b949e; font-size:0.7rem; margin-top:3px;">
-                        County: ${county || 'N/A'} | Size: <strong>${size} acres</strong> | ID: ${attr.UniqueFireIdentifier || 'N/A'}
-                    </div>
-                </div>`;
-        });
+            const fireIcon = L.divIcon({
+                html: '<i class="fa-solid fa-fire"></i>',
+                className: 'fire-icon',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+                popupAnchor: [0, -12]
+            });
 
-        if (incidents.length === 0) {
-            listHtml = '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE INCIDENTS REPORTED IN FEED</span>';
-        }
+            // Map up to the top 500 highest intensity fires to preserve browser performance
+            const mapHotspots = hotspots.slice(0, 500);
+            mapHotspots.forEach(h => {
+                if (activeLeafletMap) {
+                    const marker = L.marker([h.lat, h.lon], {icon: fireIcon});
+                    
+                    marker.bindPopup(`
+                        <div style="font-family:'Share Tech Mono';">
+                            <strong style="color:#ff3300; font-size:1rem;"><i class="fa-solid fa-satellite"></i> FIRMS ACTIVE FIRE SENSOR</strong><br>
+                            <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                            <strong>Lat/Lon:</strong> ${h.lat.toFixed(4)}, ${h.lon.toFixed(4)}<br>
+                            <strong>Radiative Power:</strong> <span style="color:#ff9900; font-weight:bold;">${h.frp} MW</span><br>
+                            <strong>Confidence Level:</strong> ${h.confidence}<br>
+                            <strong>Acquired:</strong> ${h.date} @ ${h.time} UTC<br>
+                            <strong>Detecting Satellite:</strong> ${h.sat}
+                        </div>
+                    `);
+                    mapMarkers[h.id] = marker;
+                    mapMarkersGroup.addLayer(marker);
+                }
+            });
 
-        $('#wildfire-list-target').html(listHtml);
-        $('#stat-count').text(incidents.length);
-        $('#stat-acres').text(Math.round(totalAcres).toLocaleString());
-        $('#stat-contained').text(containedCount > 0 ? Math.round(totalContainedSum / containedCount) + '%' : 'N/A');
-
-        renderWildfireChart(incidents.slice(0, 8));
-        parseFirmsHotspots(firmsCsv);
-    }).catch(err => {
-        console.error("Wildfire feed error:", err);
-        $('#wildfire-list-target').html('<span style="color:#ff5555; font-size:0.8rem;"><i class="fa-solid fa-triangle-exclamation"></i> INCIDENT FEED TIMEOUT</span>');
-    });
+            // Populate the Hotspot List (Top 100)
+            let html = '';
+            const listHotspots = hotspots.slice(0, 100);
+            listHotspots.forEach(h => {
+                html += `
+                    <div class="fire-card" onclick="openHotspotOnMap('${h.id}')" title="Click to interact with hotspot marker on map">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#ff3300; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire"></i> FIRMS HOTSPOT ${h.id.split('-')[1]}</span>
+                            <span style="color:#ffcc00; font-size:0.75rem; font-weight:bold;">FRP: ${h.frp} MW</span>
+                        </div>
+                        <div style="color:#8b949e; font-size:0.7rem; margin-top:4px;">
+                            <strong>Loc:</strong> ${h.lat.toFixed(3)}, ${h.lon.toFixed(3)} | <strong>Conf:</strong> ${h.confidence} | <strong>Acq:</strong> ${h.date} ${h.time}Z
+                        </div>
+                    </div>`;
+            });
+            container.html(html || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No active satellite thermal anomalies detected.</span>');
+        })
+        .catch(err => console.error("FIRMS Request Error:", err));
 }
 
+// Map interactions driven by the list
+function openHotspotOnMap(id) {
+    const marker = mapMarkers[id];
+    if (marker && activeLeafletMap) {
+        activeLeafletMap.flyTo(marker.getLatLng(), 11, { duration: 1.5 });
+        setTimeout(() => marker.openPopup(), 1500); // Open popup upon arrival
+    }
+}
 function zoomToCoords(lat, lon, zoomLevel) {
     if (!lat || !lon || !activeLeafletMap) return;
     activeLeafletMap.setView([lat, lon], zoomLevel || 11);
+}
+
+// --- Authoritative NIFC WFIGS Active Incident Data ---
+function fetchWFIGSData() {
+    const wfigsUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=IncidentTypeCategory%3D'WF'&outFields=*&returnGeometry=true&f=json`;
+    
+    fetch(wfigsUrl)
+        .then(r => r.json())
+        .then(wfigsData => {
+            const feats = (wfigsData && wfigsData.features) ? wfigsData.features : [];
+            // Filter strictly for active items reporting valid sizes
+            const incidents = feats
+                .map(f => ({ attributes: f.attributes, geometry: f.geometry }))
+                .filter(item => item.attributes.IncidentSize > 0)
+                .sort((a, b) => (b.attributes.IncidentSize || 0) - (a.attributes.IncidentSize || 0));
+
+            globalWildfireCache = {};
+            let listHtml = '';
+            let totalAcres = 0;
+            let totalContainedSum = 0;
+            let containedCount = 0;
+
+            const topIncidents = incidents.slice(0, 100);
+
+            topIncidents.forEach((item, idx) => {
+                const attr = item.attributes;
+                const fireKey = `wfigs-${idx}`;
+                globalWildfireCache[fireKey] = attr;
+
+                const name = attr.IncidentName || attr.ComplexName || 'Unnamed Incident';
+                const size = attr.IncidentSize ? Math.round(attr.IncidentSize).toLocaleString() : 'Unknown';
+                const contained = attr.PercentContained !== null && attr.PercentContained !== undefined ? attr.PercentContained + '%' : 'N/A';
+                const state = attr.POOState || 'US';
+                const county = attr.POOCounty || '';
+
+                if (attr.IncidentSize) totalAcres += attr.IncidentSize;
+                if (attr.PercentContained !== null && attr.PercentContained !== undefined) {
+                    totalContainedSum += attr.PercentContained;
+                    containedCount++;
+                }
+
+                const lat = (item.geometry && item.geometry.y) ? item.geometry.y : null;
+                const lon = (item.geometry && item.geometry.x) ? item.geometry.x : null;
+
+                listHtml += `
+                    <div class="fire-card" style="border-left-color: #00ffcc;" onclick="openFireDetails('${fireKey}')" ondblclick="zoomToCoords(${lat}, ${lon}, 11)" title="Double click to center map to this WFIGS incident">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#00ffcc; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-shield-halved"></i> ${name.toUpperCase()} (${state})</span>
+                            <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
+                        </div>
+                        <div style="color:#8b949e; font-size:0.7rem; margin-top:3px;">
+                            County: ${county || 'N/A'} | Size: <strong>${size} acres</strong>
+                        </div>
+                    </div>`;
+            });
+
+            if (topIncidents.length === 0) {
+                listHtml = '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE WFIGS INCIDENTS DETECTED</span>';
+            }
+
+            $('#wildfire-list-target').html(listHtml);
+            $('#stat-count').text(incidents.length);
+            $('#stat-acres').text(Math.round(totalAcres).toLocaleString());
+            $('#stat-contained').text(containedCount > 0 ? Math.round(totalContainedSum / containedCount) + '%' : 'N/A');
+
+            renderWildfireChart(topIncidents.slice(0, 8));
+        }).catch(err => {
+            console.error("WFIGS feed error:", err);
+            $('#wildfire-list-target').html('<span style="color:#ff5555; font-size:0.8rem;"><i class="fa-solid fa-triangle-exclamation"></i> INCIDENT WFIGS FEED TIMEOUT</span>');
+        });
 }
 
 function openFireDetails(key) {
@@ -294,10 +377,10 @@ function openFireDetails(key) {
         <div><strong>Category:</strong> ${attr.IncidentTypeCategory || 'WF'}</div>
     </div>`;
     body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
-        <i class="fa-solid fa-satellite-dish"></i> IRWIN / WFIGS synchronized data record. Double-click the incident card in the list to instantly center the map to this fire's location.
+        <i class="fa-solid fa-satellite-dish"></i> IRWIN / WFIGS synchronized data record. Double-click the incident card in the list to instantly center the map to this tracked fire.
     </div>`;
 
-    openFloatingModal(`WILDFIRE INCIDENT MATRIX: ${attr.IncidentName || 'DETAILS'}`, body);
+    openFloatingModal(`AUTHORITATIVE INCIDENT MATRIX: ${attr.IncidentName || 'DETAILS'}`, body);
 }
 
 function renderWildfireChart(topIncidents) {
@@ -319,8 +402,8 @@ function renderWildfireChart(topIncidents) {
             datasets: [{
                 label: 'Acreage',
                 data: sizes,
-                backgroundColor: 'rgba(255, 102, 0, 0.65)',
-                borderColor: '#ff6600',
+                backgroundColor: 'rgba(0, 255, 204, 0.65)',
+                borderColor: '#00ffcc',
                 borderWidth: 1
             }]
         },
@@ -335,46 +418,6 @@ function renderWildfireChart(topIncidents) {
             }
         }
     });
-}
-
-function parseFirmsHotspots(csvText) {
-    const container = $('#firms-hotspots');
-    if (!csvText || csvText.trim().split('\n').length < 2) {
-        container.html('<span style="color:#00ff55; font-size:0.75rem;"><i class="fa-solid fa-check"></i> No thermal hotspots reported in 48h window</span>');
-        return;
-    }
-
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(',');
-    const latIdx = headers.indexOf('latitude');
-    const lonIdx = headers.indexOf('longitude');
-    const dateIdx = headers.indexOf('acq_date');
-    const timeIdx = headers.indexOf('acq_time');
-    const confIdx = headers.indexOf('confidence');
-
-    const hotspots = lines.slice(1, 15).map(line => {
-        const cols = line.split(',');
-        return {
-            lat: parseFloat(cols[latIdx]),
-            lon: parseFloat(cols[lonIdx]),
-            date: cols[dateIdx],
-            time: cols[timeIdx],
-            confidence: cols[confIdx]
-        };
-    }).filter(h => !isNaN(h.lat));
-
-    let html = '';
-    hotspots.forEach(h => {
-        const timeStr = (h.time || '').padStart(4, '0');
-        html += `
-            <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px 8px; margin-bottom:5px; font-size:0.72rem; display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:#ff9900; font-weight:bold; cursor:pointer; text-decoration:underline;" onclick="zoomToCoords(${h.lat}, ${h.lon}, 11)" title="Click to view hotspot area on map">
-                    <i class="fa-solid fa-location-dot"></i> ${h.lat.toFixed(2)}, ${h.lon.toFixed(2)}
-                </span>
-                <span style="color:#8b949e;">${h.date} ${timeStr.slice(0,2)}:${timeStr.slice(2)} UTC · Conf: ${h.confidence}</span>
-            </div>`;
-    });
-    container.html(html);
 }
 
 function fetchNWSAlerts() {
@@ -403,7 +446,7 @@ function fetchNWSAlerts() {
                         </div>`;
                 });
             } else {
-                html = "<span style='color:#00ff55; font-size:0.8rem;'>✓ NO ACTIVE FIRE WEATHER OR RED FLAG WARNINGS NATIONWIDE</span>";
+                html = "<span style='color:#00ff55; font-size:0.8rem;'><i class='fa-solid fa-check'></i> NO ACTIVE FIRE WEATHER WARNINGS</span>";
             }
 
             if (alertCount > previousAlertCount && alertCount > 0) playAlertSound();
@@ -424,35 +467,44 @@ function openAlertDetails(id) {
 
 function fetchAirQualityData() {
     const sampleCoords = [
-        { name: "California (West)", lat: 38.5816, lon: -121.4944 },
-        { name: "Colorado (Rockies)", lat: 39.7392, lon: -104.9903 },
-        { name: "Texas (South)", lat: 30.2672, lon: -97.7431 },
-        { name: "New York (East)", lat: 40.7128, lon: -74.0060 }
+        { name: "California (West)", lat: 38.5816, lon: -121.4944, state: "California" },
+        { name: "Colorado (Rockies)", lat: 39.7392, lon: -104.9903, state: "Colorado" },
+        { name: "Texas (South)", lat: 30.2672, lon: -97.7431, state: "Texas" },
+        { name: "New York (East)", lat: 40.7128, lon: -74.0060, state: "New York" }
     ];
 
     let promises = sampleCoords.map(loc => 
         fetch(`https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${loc.lat}&longitude=${loc.lon}&distance=75&API_KEY=${AIRNOW_API_KEY}`)
             .then(res => res.json())
-            .catch(() => [])
+            .then(data => ({ data, meta: loc }))
+            .catch(() => ({ data: [], meta: loc }))
     );
 
     Promise.all(promises).then(results => {
-        let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> MULTI-STATE AIRNOW SMOKE & AQI MONITORING (CLICK TO VIEW)</div>`;
+        let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> CLICK AQI SENSOR CARD FOR DETAILS</div>`;
         html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
         
         let hasData = false;
-        results.forEach((data, index) => {
-            if (data && data.length > 0) {
+        results.forEach((item) => {
+            if (item.data && item.data.length > 0) {
                 hasData = true;
-                const regionName = sampleCoords[index].name;
+                const regionName = item.meta.name;
                 html += `<div style="background:#161b22; border:1px solid #30363d; padding:8px; border-radius:3px;">`;
                 html += `<div style="font-size:0.72rem; color:#00ffcc; font-weight:bold; margin-bottom:4px;">${regionName}</div>`;
                 html += `<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:4px;">`;
-                data.forEach(p => {
+                
+                item.data.forEach(p => {
                     const color = p.AQI > 150 ? '#ff0000' : p.AQI > 100 ? '#ff7e00' : p.AQI > 50 ? '#ffcc00' : '#00ff55';
-                    const payloadString = encodeURIComponent(JSON.stringify({ region: regionName, parameter: p.ParameterName, aqi: p.AQI, category: p.Category ? p.Category.Name : 'N/A', site: p.ReportingArea || 'Unknown Sensor' }));
+                    const payloadString = encodeURIComponent(JSON.stringify({ 
+                        region: regionName, 
+                        state: item.meta.state, 
+                        parameter: p.ParameterName, 
+                        aqi: p.AQI, 
+                        category: p.Category ? p.Category.Name : 'N/A', 
+                        site: p.ReportingArea || 'Unknown Sensor' 
+                    }));
                     html += `
-                        <div class="aqi-interactive-card" style="text-align:center; border-radius:2px;" onclick="openAQIDetails('${payloadString}')">
+                        <div class="aqi-interactive-card" style="text-align:center; border-radius:2px;" onclick="openAQIDetails('${payloadString}')" title="Click for ${regionName} AirNow Report">
                             <div style="font-size:0.6rem; color:#8b949e;">${p.ParameterName}</div>
                             <div style="font-size:1.1rem; color:${color}; font-weight:bold;">${p.AQI}</div>
                             <div style="font-size:0.55rem; color:${color};">${p.Category ? p.Category.Name : ''}</div>
@@ -480,7 +532,8 @@ function openAQIDetails(encodedStr) {
         <div><strong>Air Quality Category:</strong> ${info.category}</div>
     </div>`;
     body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
-        <i class="fa-solid fa-wind"></i> This metric is pulled directly from AirNow regional reporting sensor arrays monitoring atmospheric particle pollution and smoke density across ${info.region}.
+        <i class="fa-solid fa-wind"></i> <strong>DATA SOURCE CONFIRMATION:</strong><br>
+        This telemetry data is being explicitly requested and pulled securely from the authoritative AirNow API for the state of <strong>${info.state}</strong>. It reflects the live reported environmental conditions from the immediate local sensor.
     </div>`;
     openFloatingModal(`AQI TELEMETRY: ${info.parameter} (${info.region})`, body);
 }
