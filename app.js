@@ -1,4 +1,4 @@
-// --- WILDFIREXPLR Core Configuration & State ---
+// --- WILDFIREXPLR Core State & Configuration ---
 let countdownVal = 120;
 
 const AIRNOW_API_KEY = "E5AFEF36-80F6-4A42-AE38-F3C56E3AEAC4"; 
@@ -13,6 +13,7 @@ let wildfireChartInstance = null;
 let activeLeafletMap = null;
 let firmsMarkersGroup = null;
 let wfigsMarkersGroup = null;
+let eonetMarkersGroup = null;
 let activePerimeter = null;
 
 let alertSoundEnabled = false;
@@ -41,7 +42,7 @@ function playAlertSound() {
     } catch (err) { console.error("Audio error:", err); }
 }
 
-// --- Golden Layout Structural Grid ---
+// --- Golden Layout Grid Configuration ---
 const config = {
     settings: { hasHeaders: true, reorderEnabled: true, showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: false },
     content: [{
@@ -49,17 +50,17 @@ const config = {
         content: [
             {
                 type: 'column',
-                width: 42,
+                width: 44,
                 content: [
-                    { type: 'component', componentName: 'wildfireMap', title: 'MULTI-AGENCY ACTIVE FIRE / HOTSPOT MAP' },
+                    { type: 'component', componentName: 'wildfireMap', title: 'MULTI-AGENCY ACTIVE FIRE MAP' },
                     { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS)' }
                 ]
             },
             {
                 type: 'column',
-                width: 30,
+                width: 28,
                 content: [
-                    { type: 'component', componentName: 'nwsAlerts', title: 'NWS FIRE WEATHER WARNING MATRIX' },
+                    { type: 'component', componentName: 'nwsAlerts', title: 'NWS RED FLAG / WEATHER WARNINGS' },
                     { type: 'component', componentName: 'fireAnalytics', title: 'NATIONAL ACREAGE & CONTAINMENT METRICS' }
                 ]
             },
@@ -67,8 +68,8 @@ const config = {
                 type: 'column',
                 width: 28,
                 content: [
-                    { type: 'component', componentName: 'satelliteHotspots', title: 'NASA FIRMS SATELLITE THERMAL HOTSPOTS' },
-                    { type: 'component', componentName: 'airQualityPanel', title: 'NATIONAL AIRNOW SMOKE & AQI METRICS' }
+                    { type: 'component', componentName: 'satelliteHotspots', title: 'NASA FIRMS & EONET THERMAL HOTSPOTS' },
+                    { type: 'component', componentName: 'airQualityPanel', title: 'AIRNOW SATELLITE & SMOKE AQI METRICS' }
                 ]
             }
         ]
@@ -81,17 +82,20 @@ const layout = new GoldenLayout(config, '#desktopLayoutContainer');
 layout.registerComponent('wildfireMap', function(container) {
     container.getElement().html(`
         <div style="position:relative; width:100%; height:100%; background:#0d1117;">
-            <!-- Custom Map Controls -->
-            <div id="mapControls" style="position:absolute; top:15px; right:15px; z-index:1000; background:rgba(22,27,34,0.9); border:1px solid #ff6600; padding:10px; border-radius:5px; width:220px; display:flex; flex-direction:column; gap:8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                <div style="color:#ff9900; font-weight:bold; text-align:center; font-size:0.85rem;"><i class="fa-solid fa-satellite-dish"></i> WFIGS MAP CONTROLS</div>
-                <select id="stateFilter" style="background:#0d1117; color:#00ffcc; border:1px solid #30363d; padding:6px; font-family:'Share Tech Mono', monospace; cursor:pointer;" onchange="applyStateFilter()">
-                    <option value="ALL">SHOW ALL STATES</option>
-                </select>
-                <div style="display:flex; gap:5px;">
-                    <button class="btn-control" style="color:#00ff55;" onclick="toggleAllWfigs(true)">ENABLE ALL</button>
-                    <button class="btn-control" style="color:#ff5555;" onclick="toggleAllWfigs(false)">DISABLE</button>
+            <!-- Redesigned Compact Map Control Bar (Does not obscure map) -->
+            <div id="mapControls" style="position:absolute; top:8px; left:8px; right:8px; z-index:1000; background:rgba(13, 17, 23, 0.88); backdrop-filter:blur(6px); border:1px solid #ff6600; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                <div style="display:flex; align-items:center; gap:6px; color:#ff9900; font-weight:bold; font-size:0.75rem;">
+                    <i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.9rem;"></i> 
+                    <span>WFIGS CONTROLS:</span>
                 </div>
-                <button class="btn-control" style="color:#00ffcc;" onclick="resetMapBounds()">RESET USA VIEW</button>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <select id="stateFilter" style="background:#161b22; color:#00ffcc; border:1px solid #30363d; padding:4px 8px; font-family:'Share Tech Mono', monospace; font-size:0.72rem; border-radius:3px; cursor:pointer;" onchange="applyStateFilter()">
+                        <option value="ALL">ALL STATES</option>
+                    </select>
+                    <button class="btn-control" style="color:#00ff55; font-size:0.72rem;" onclick="toggleAllWfigs(true)"><i class="fa-solid fa-eye"></i> ENABLE ALL</button>
+                    <button class="btn-control" style="color:#ff5555; font-size:0.72rem;" onclick="toggleAllWfigs(false)"><i class="fa-solid fa-eye-slash"></i> DISABLE ALL</button>
+                    <button class="btn-control" style="color:#00ffcc; font-size:0.72rem;" onclick="resetMapBounds()"><i class="fa-solid fa-compress"></i> RESET USA</button>
+                </div>
             </div>
             
             <div id="leafletMapContainer" style="width:100%; height:100%;"></div>
@@ -106,6 +110,7 @@ layout.registerComponent('wildfireMap', function(container) {
 
             firmsMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
             wfigsMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
+            eonetMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
         }
         fetchAllData();
     }, 250);
@@ -120,12 +125,12 @@ layout.registerComponent('nwsAlerts', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="position:relative;">
             <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #30363d; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:0.85rem; color:#ffcc00; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> NWS FIRE / RED FLAG WARNINGS</div>
-                <button id="soundToggleBtn" onclick="toggleAlertSound()" class="btn-control" style="color:#8b949e; flex:0;" title="Toggle alert sound">
+                <div style="font-size:0.85rem; color:#ffcc00; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> NWS RED FLAG / WEATHER WARNINGS</div>
+                <button id="soundToggleBtn" onclick="toggleAlertSound()" class="btn-control" style="color:#8b949e; padding:2px 6px;" title="Toggle alert audio">
                     <i class="fa-solid fa-volume-mute"></i>
                 </button>
             </div>
-            <div id="alerts-container">Scanning NWS fire hazard warning feeds...</div>
+            <div id="alerts-container">Scanning NWS hazard feeds...</div>
         </div>`);
     container.on('open', fetchNWSAlerts);
 });
@@ -133,10 +138,20 @@ layout.registerComponent('nwsAlerts', function(container) {
 layout.registerComponent('fireAnalytics', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="display:flex; flex-direction:column; gap:10px;">
+            <!-- Clickable Stat Summary Cards -->
             <div id="fire-summary-stats" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
-                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">TRACKED FIRES</div><div id="stat-count" style="font-size:1.2rem; color:#00ffcc; font-weight:bold;">--</div></div>
-                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">ACREAGE BURNED</div><div id="stat-acres" style="font-size:1.2rem; color:#ff6600; font-weight:bold;">--</div></div>
-                <div style="background:#161b22; border:1px solid #30363d; border-radius:3px; padding:6px; text-align:center;"><div style="font-size:0.6rem; color:#8b949e;">AVG CONTAINED</div><div id="stat-contained" style="font-size:1.2rem; color:#00ff55; font-weight:bold;">--</div></div>
+                <div class="stat-card" onclick="openMetricsDetailModal('count')" title="Click for Detailed Incident List">
+                    <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">TRACKED FIRES <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
+                    <div id="stat-count" style="font-size:1.15rem; color:#00ffcc; font-weight:bold; margin-top:2px;">--</div>
+                </div>
+                <div class="stat-card" onclick="openMetricsDetailModal('acres')" title="Click for Acreage Breakdown by State">
+                    <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">ACREAGE BURNED <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
+                    <div id="stat-acres" style="font-size:1.15rem; color:#ff6600; font-weight:bold; margin-top:2px;">--</div>
+                </div>
+                <div class="stat-card" onclick="openMetricsDetailModal('contained')" title="Click for Containment Distribution">
+                    <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">AVG CONTAINED <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
+                    <div id="stat-contained" style="font-size:1.15rem; color:#00ff55; font-weight:bold; margin-top:2px;">--</div>
+                </div>
             </div>
             <div style="min-height:180px; position:relative; background:#161b22; border: 1px solid #30363d; border-radius:4px; padding:10px;">
                 <canvas id="wildfireChart"></canvas>
@@ -149,13 +164,13 @@ layout.registerComponent('fireAnalytics', function(container) {
 layout.registerComponent('satelliteHotspots', function(container) {
     container.getElement().html(`
         <div class="weather-component">
-            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NATIONAL FIRMS HOTSPOTS (CLICK TO CENTER ON MAP)</div>
+            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> SATELLITE HOTSPOTS (FIRMS & EONET)</div>
             <div id="firms-hotspots" style="display:flex; flex-direction:column; gap:6px;">
-                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA FIRMS satellite feed...</span>
+                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA satellite feeds...</span>
             </div>
         </div>
     `);
-    container.on('open', fetchFIRMSData);
+    container.on('open', () => { fetchFIRMSData(); fetchEONETData(); });
 });
 
 layout.registerComponent('airQualityPanel', function(container) {
@@ -186,12 +201,13 @@ function toggleAlertSound() {
 
 function fetchAllData() {
     fetchFIRMSData();
+    fetchEONETData();
     fetchWFIGSData();
     fetchNWSAlerts();
     fetchAirQualityData();
 }
 
-// --- NASA LANCE FIRMS API Map & Hotspots Handler ---
+// --- NASA FIRMS API (Satellite Fire Hotspots with Red Flame Markers) ---
 function fetchFIRMSData() {
     const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/-125,24,-66,50/1`;
 
@@ -200,7 +216,7 @@ function fetchFIRMSData() {
         .then(csvText => {
             const container = $('#firms-hotspots');
             if (!csvText || csvText.startsWith('Error') || csvText.trim().split('\n').length < 2) {
-                container.html('<span style="color:#ff5555; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> FIRMS satellite feed unavailable or empty at this time.</span>');
+                container.html('<span style="color:#ff5555; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> FIRMS satellite feed unavailable or empty.</span>');
                 return;
             }
 
@@ -209,14 +225,13 @@ function fetchFIRMSData() {
             const latIdx = headers.indexOf('latitude'); const lonIdx = headers.indexOf('longitude');
             const dateIdx = headers.indexOf('acq_date'); const timeIdx = headers.indexOf('acq_time');
             const confIdx = headers.indexOf('confidence'); const frpIdx = headers.indexOf('frp');
-            const satIdx = headers.indexOf('satellite');
 
             let hotspots = lines.slice(1).map((line, idx) => {
                 const cols = line.split(',');
                 return {
                     id: `firms-${idx}`, lat: parseFloat(cols[latIdx]), lon: parseFloat(cols[lonIdx]),
                     date: cols[dateIdx], time: cols[timeIdx], confidence: cols[confIdx] || 'N/A',
-                    frp: parseFloat(cols[frpIdx]) || 0, sat: cols[satIdx] || 'Unknown'
+                    frp: parseFloat(cols[frpIdx]) || 0
                 };
             }).filter(h => !isNaN(h.lat));
 
@@ -224,20 +239,21 @@ function fetchFIRMSData() {
             if (firmsMarkersGroup) firmsMarkersGroup.clearLayers();
             firmsMapMarkers = {};
 
-            const fireIcon = L.divIcon({
-                html: '<i class="fa-solid fa-fire"></i>', className: 'fire-icon',
+            // Red Flame Icon for FIRMS Hotspots
+            const redFlameIcon = L.divIcon({
+                html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'fire-icon-red',
                 iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -12]
             });
 
             hotspots.slice(0, 300).forEach(h => {
                 if (activeLeafletMap) {
-                    const marker = L.marker([h.lat, h.lon], {icon: fireIcon});
+                    const marker = L.marker([h.lat, h.lon], {icon: redFlameIcon});
                     marker.bindPopup(`
                         <div style="font-family:'Share Tech Mono';">
-                            <strong style="color:#ff3300; font-size:1rem;"><i class="fa-solid fa-satellite"></i> FIRMS SENSOR</strong><br>
+                            <strong style="color:#ff3300; font-size:1rem;"><i class="fa-solid fa-fire-flame-curved"></i> FIRMS HOTSPOT</strong><br>
                             <hr style="border: 1px solid #30363d; margin: 6px 0;" />
                             <strong>Lat/Lon:</strong> ${h.lat.toFixed(4)}, ${h.lon.toFixed(4)}<br>
-                            <strong>Power:</strong> <span style="color:#ff9900; font-weight:bold;">${h.frp} MW</span><br>
+                            <strong>Radiative Power:</strong> <span style="color:#ff9900; font-weight:bold;">${h.frp} MW</span><br>
                             <strong>Confidence:</strong> ${h.confidence}<br>
                             <strong>Acquired:</strong> ${h.date} @ ${h.time}Z
                         </div>
@@ -248,20 +264,59 @@ function fetchFIRMSData() {
             });
 
             let html = '';
-            hotspots.slice(0, 100).forEach(h => {
+            hotspots.slice(0, 80).forEach(h => {
                 html += `
                     <div class="fire-card" onclick="openHotspotOnMap('${h.id}')">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#ff3300; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire"></i> FIRMS HOTSPOT ${h.id.split('-')[1]}</span>
-                            <span style="color:#ffcc00; font-size:0.75rem; font-weight:bold;">FRP: ${h.frp} MW</span>
+                            <span style="color:#ff3300; font-weight:bold; font-size:0.82rem;"><i class="fa-solid fa-fire-flame-curved"></i> FIRMS HOTSPOT ${h.id.split('-')[1]}</span>
+                            <span style="color:#ff9900; font-size:0.75rem; font-weight:bold;">${h.frp} MW</span>
                         </div>
                         <div style="color:#8b949e; font-size:0.7rem; margin-top:4px;">
-                            <strong>Loc:</strong> ${h.lat.toFixed(3)}, ${h.lon.toFixed(3)} | <strong>Conf:</strong> ${h.confidence}
+                            Loc: ${h.lat.toFixed(3)}, ${h.lon.toFixed(3)} | Conf: ${h.confidence}
                         </div>
                     </div>`;
             });
-            container.html(html || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No active anomalies.</span>');
+            container.html(html || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No active satellite hotspots.</span>');
         }).catch(err => console.error("FIRMS Error:", err));
+}
+
+// --- NASA EONET Data Handler (Additional Global/US Natural Event Tracker) ---
+function fetchEONETData() {
+    fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&category=wildfires&limit=40')
+        .then(res => res.json())
+        .then(data => {
+            if (!data || !data.events) return;
+            if (eonetMarkersGroup) eonetMarkersGroup.clearLayers();
+
+            const eonetIcon = L.divIcon({
+                html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'fire-icon-red',
+                iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -12]
+            });
+
+            data.events.forEach(evt => {
+                if (evt.geometry && evt.geometry.length > 0) {
+                    const geom = evt.geometry[evt.geometry.length - 1];
+                    if (geom.coordinates && geom.coordinates.length >= 2) {
+                        const lon = geom.coordinates[0];
+                        const lat = geom.coordinates[1];
+                        
+                        if (activeLeafletMap && lat && lon) {
+                            const marker = L.marker([lat, lon], { icon: eonetIcon });
+                            marker.bindPopup(`
+                                <div style="font-family:'Share Tech Mono';">
+                                    <strong style="color:#ff3300; font-size:0.95rem;"><i class="fa-solid fa-globe"></i> NASA EONET INCIDENT</strong><br>
+                                    <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                                    <strong>Title:</strong> ${evt.title}<br>
+                                    <strong>Report Date:</strong> ${geom.date ? new Date(geom.date).toLocaleDateString() : 'N/A'}<br>
+                                    <strong>Source Agency:</strong> ${evt.sources && evt.sources[0] ? evt.sources[0].id : 'EONET'}
+                                </div>
+                            `);
+                            eonetMarkersGroup.addLayer(marker);
+                        }
+                    }
+                }
+            });
+        }).catch(err => console.error("EONET fetch error:", err));
 }
 
 function openHotspotOnMap(id) {
@@ -272,7 +327,7 @@ function openHotspotOnMap(id) {
     }
 }
 
-// --- Authoritative NIFC WFIGS Data & Map Plotting ---
+// --- Authoritative NIFC WFIGS Active Fires Handler ---
 function fetchWFIGSData() {
     const wfigsUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?where=IncidentTypeCategory%3D'WF'&outFields=*&returnGeometry=true&f=json`;
     
@@ -288,15 +343,15 @@ function fetchWFIGSData() {
             globalWildfireCache = {};
             if (wfigsMarkersGroup) wfigsMarkersGroup.clearLayers();
             
-            // Preserve the existing map toggles state
             const currentStateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'ALL';
             
             let listHtml = ''; let totalAcres = 0; let totalContainedSum = 0; let containedCount = 0;
             const topIncidents = incidents.slice(0, 150);
             
-            const wfigsIcon = L.divIcon({
-                html: '<i class="fa-solid fa-shield-halved"></i>', className: 'wfigs-icon',
-                iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -12]
+            // Prominent Red Flame Icon for WFIGS Active Incidents
+            const wfigsRedIcon = L.divIcon({
+                html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'wfigs-icon-red',
+                iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12]
             });
 
             let statesSet = new Set();
@@ -322,44 +377,43 @@ function fetchWFIGSData() {
                 const lon = (item.geometry && item.geometry.x) ? item.geometry.x : null;
 
                 if (lat && lon) {
-                    const marker = L.marker([lat, lon], {icon: wfigsIcon});
+                    const marker = L.marker([lat, lon], {icon: wfigsRedIcon});
                     marker.bindPopup(`
                         <div style="font-family:'Share Tech Mono';">
-                            <strong style="color:#00ffcc; font-size:1rem; text-transform:uppercase;"><i class="fa-solid fa-shield-halved"></i> ${name}</strong><br>
+                            <strong style="color:#ff3300; font-size:1rem; text-transform:uppercase;"><i class="fa-solid fa-fire-flame-curved"></i> ${name}</strong><br>
                             <hr style="border: 1px solid #30363d; margin: 6px 0;" />
                             <strong>State/County:</strong> ${state}, ${county || 'N/A'}<br>
                             <strong>Acreage:</strong> ${size} acres<br>
                             <strong>Containment:</strong> ${contained}<br>
                             <strong>Discovered:</strong> ${attr.FireDiscoveryDateTime ? new Date(attr.FireDiscoveryDateTime).toLocaleDateString() : 'N/A'}<br>
-                            <strong>Type:</strong> ${attr.IncidentTypeCategory || 'WF'}
+                            <strong>Agency/Type:</strong> ${attr.POOOwnerAgency || 'Interagency'} (${attr.IncidentTypeCategory || 'WF'})
                         </div>
                     `, { className: 'wfigs-popup' });
 
                     globalWildfireMapCache[fireKey] = { marker: marker, state: state, lat: lat, lon: lon, enabled: true };
                     
-                    // Respect the current filter when re-rendering
                     if (currentStateFilter === 'ALL' || currentStateFilter === state) {
                         wfigsMarkersGroup.addLayer(marker);
                     }
                 }
 
                 listHtml += `
-                    <div class="fire-card wfigs-card" style="border-left-color: #00ffcc;" onclick="openWfigsOnMap('${fireKey}')" title="Click to view fire perimeter and details on map">
+                    <div class="fire-card wfigs-card" style="border-left-color: #ff3300;" onclick="openWfigsOnMap('${fireKey}')" title="Click to navigate to map position and view perimeter">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#00ffcc; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-shield-halved"></i> ${name.toUpperCase()} (${state})</span>
+                            <span style="color:#ff9900; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> ${name.toUpperCase()} (${state})</span>
                             <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
                         </div>
                         <div style="color:#8b949e; font-size:0.7rem; margin-top:3px;">
-                            County: ${county || 'N/A'} | Size: <strong>${size} acres</strong>
+                            County: ${county || 'N/A'} | Size: <strong style="color:#ff6600;">${size} acres</strong>
                         </div>
                     </div>`;
             });
 
-            // Update State Dropdown
+            // Update State Filter Select Dropdown
             const selectEl = document.getElementById('stateFilter');
             if (selectEl) {
                 const sortedStates = Array.from(statesSet).sort();
-                let optionsHtml = `<option value="ALL">SHOW ALL STATES</option>`;
+                let optionsHtml = `<option value="ALL">ALL STATES</option>`;
                 sortedStates.forEach(s => { optionsHtml += `<option value="${s}" ${currentStateFilter === s ? 'selected' : ''}>${s}</option>`; });
                 selectEl.innerHTML = optionsHtml;
             }
@@ -381,19 +435,17 @@ function openWfigsOnMap(key) {
     const attr = globalWildfireCache[key];
     if (!item || !attr || !activeLeafletMap) return;
     
-    // Clear previous perimeter calculation
     if (activePerimeter) { activeLeafletMap.removeLayer(activePerimeter); activePerimeter = null; }
     
-    // Calculate and draw perimeter ring (Area = pi * r^2. 1 acre = 4046.86 sq m)
+    // Draw fire perimeter circle ring (Area = pi * r^2. 1 acre = 4046.86 sq meters)
     const acres = attr.IncidentSize || 0;
     if (acres > 0) {
         const radiusMeters = Math.sqrt((acres * 4046.86) / Math.PI);
         activePerimeter = L.circle([item.lat, item.lon], {
-            color: '#00ffcc', fillColor: '#00ffcc', fillOpacity: 0.15, weight: 2, dashArray: '5, 5'
+            color: '#ff3300', fillColor: '#ff3300', fillOpacity: 0.25, weight: 2, dashArray: '4, 4'
         }).addTo(activeLeafletMap);
     }
     
-    // Ensure layer is active on map if it was filtered out
     if (!wfigsMarkersGroup.hasLayer(item.marker)) {
         wfigsMarkersGroup.addLayer(item.marker);
         item.enabled = true;
@@ -403,7 +455,123 @@ function openWfigsOnMap(key) {
     setTimeout(() => item.marker.openPopup(), 1500);
 }
 
-// --- Map Controls ---
+// --- Interactive Detailed Modal for Clickable Metrics ---
+function openMetricsDetailModal(type) {
+    const keys = Object.keys(globalWildfireCache);
+    if (keys.length === 0) {
+        openFloatingModal("NATIONAL METRICS REPORT", "<p>Wildfire dataset is currently syncing. Please wait a moment...</p>");
+        return;
+    }
+
+    let items = keys.map(k => globalWildfireCache[k]);
+    
+    let stateMap = {};
+    let containmentBins = { "0-25%": 0, "26-50%": 0, "51-75%": 0, "76-99%": 0, "100%": 0, "Unreported": 0 };
+    let totalAcres = 0;
+
+    items.forEach(item => {
+        let st = item.POOState || 'US';
+        let sz = item.IncidentSize || 0;
+        let c = item.PercentContained;
+
+        totalAcres += sz;
+        if (!stateMap[st]) stateMap[st] = { count: 0, acres: 0 };
+        stateMap[st].count += 1;
+        stateMap[st].acres += sz;
+
+        if (c === null || c === undefined) containmentBins["Unreported"]++;
+        else if (c === 100) containmentBins["100%"]++;
+        else if (c >= 76) containmentBins["76-99%"]++;
+        else if (c >= 51) containmentBins["51-75%"]++;
+        else if (c >= 26) containmentBins["26-50%"]++;
+        else containmentBins["0-25%"]++;
+    });
+
+    let sortedStates = Object.keys(stateMap).sort((a,b) => stateMap[b].acres - stateMap[a].acres);
+
+    let title = "";
+    let html = "";
+
+    if (type === 'acres') {
+        title = "NATIONAL ACREAGE BURNED ANALYSIS";
+        html = `
+            <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #ff6600;">
+                <div style="font-size:0.95rem; color:#ff9900; font-weight:bold;"><i class="fa-solid fa-chart-pie"></i> TOTAL NATIONAL BURN AREA: ${Math.round(totalAcres).toLocaleString()} ACRES</div>
+                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Reported burn acreage compiled across NIFC Interagency and State Geographic Areas.</div>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                <thead>
+                    <tr style="border-bottom:2px solid #30363d; color:#00ffcc;">
+                        <th style="padding:8px;">STATE / REGION</th>
+                        <th style="padding:8px;">ACTIVE FIRES</th>
+                        <th style="padding:8px;">TOTAL ACRES BURNED</th>
+                        <th style="padding:8px;">% OF USA TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        sortedStates.forEach(st => {
+            let pct = totalAcres > 0 ? ((stateMap[st].acres / totalAcres) * 100).toFixed(1) : 0;
+            html += `
+                <tr style="border-bottom:1px solid #21262d;">
+                    <td style="padding:8px; font-weight:bold; color:#ff9900;">${st}</td>
+                    <td style="padding:8px;">${stateMap[st].count}</td>
+                    <td style="padding:8px; color:#ff6600; font-weight:bold;">${Math.round(stateMap[st].acres).toLocaleString()}</td>
+                    <td style="padding:8px;">${pct}%</td>
+                </tr>`;
+        });
+        html += `</tbody></table>`;
+    } else if (type === 'contained') {
+        title = "FIRE CONTAINMENT DISTRIBUTION MATRIX";
+        html = `
+            <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #00ff55;">
+                <div style="font-size:0.95rem; color:#00ff55; font-weight:bold;"><i class="fa-solid fa-shield-halved"></i> CONTAINMENT PROGRESSION BREAKDOWN</div>
+                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Perimeter containment progress across tracked active wildland fires nationwide.</div>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:15px;">`;
+        
+        Object.keys(containmentBins).forEach(bin => {
+            html += `
+                <div style="background:#0d1117; border:1px solid #30363d; padding:12px; border-radius:4px; text-align:center;">
+                    <div style="font-size:0.7rem; color:#8b949e;">${bin} CONTAINED</div>
+                    <div style="font-size:1.5rem; color:#00ffcc; font-weight:bold; margin:4px 0;">${containmentBins[bin]}</div>
+                    <div style="font-size:0.65rem; color:#8b949e;">Fires</div>
+                </div>`;
+        });
+        html += `</div>`;
+    } else {
+        title = "ACTIVE TRACKED INCIDENTS LISTING";
+        html = `
+            <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #00ffcc;">
+                <div style="font-size:0.95rem; color:#00ffcc; font-weight:bold;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> TOTAL TRACKED INCIDENTS: ${items.length}</div>
+                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">NIFC WFIGS active wildland fire incidents sorted by footprint size.</div>
+            </div>
+            <div style="max-height:350px; overflow-y:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #30363d; color:#00ffcc;">
+                            <th style="padding:6px;">INCIDENT NAME</th>
+                            <th style="padding:6px;">STATE</th>
+                            <th style="padding:6px;">ACRES</th>
+                            <th style="padding:6px;">CONTAINMENT</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        items.forEach(item => {
+            html += `
+                <tr style="border-bottom:1px solid #21262d;">
+                    <td style="padding:6px; color:#ff9900; font-weight:bold;">${item.IncidentName || 'Unnamed'}</td>
+                    <td style="padding:6px;">${item.POOState || 'US'}</td>
+                    <td style="padding:6px; color:#ff6600;">${item.IncidentSize ? Math.round(item.IncidentSize).toLocaleString() : 'N/A'}</td>
+                    <td style="padding:6px; color:#00ff55;">${item.PercentContained !== undefined && item.PercentContained !== null ? item.PercentContained + '%' : 'N/A'}</td>
+                </tr>`;
+        });
+        html += `</tbody></table></div>`;
+    }
+
+    openFloatingModal(title, html);
+}
+
+// --- Redesigned Map Controls Logic ---
 function applyStateFilter() {
     const state = document.getElementById('stateFilter').value;
     let bounds = [];
@@ -459,7 +627,7 @@ function renderWildfireChart(topIncidents) {
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [{ label: 'Acreage', data: sizes, backgroundColor: 'rgba(0, 255, 204, 0.65)', borderColor: '#00ffcc', borderWidth: 1 }]
+            datasets: [{ label: 'Acreage', data: sizes, backgroundColor: 'rgba(255, 102, 0, 0.65)', borderColor: '#ff6600', borderWidth: 1 }]
         },
         options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -488,7 +656,7 @@ function fetchNWSAlerts() {
                             <div style="color:#8b949e; font-size:0.7rem; margin-top:2px;">${f.properties.areaDesc}</div>
                         </div>`;
                 });
-            } else { html = "<span style='color:#00ff55; font-size:0.8rem;'><i class='fa-solid fa-check'></i> NO ACTIVE FIRE WEATHER WARNINGS</span>"; }
+            } else { html = "<span style='color:#00ff55; font-size:0.8rem;'><i class='fa-solid fa-check'></i> NO ACTIVE RED FLAG WARNINGS</span>"; }
 
             if (alertCount > previousAlertCount && alertCount > 0) playAlertSound();
             previousAlertCount = alertCount; container.html(html);
@@ -556,7 +724,7 @@ function openAQIDetails(encodedStr) {
         <div><strong>AQI Index:</strong> <span style="color:#ff6600; font-weight:bold;">${info.aqi}</span></div><div><strong>Category:</strong> ${info.category}</div>
     </div>`;
     body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
-        <i class="fa-solid fa-wind"></i> <strong>DATA SOURCE CONFIRMATION:</strong> Pulled securely from AirNow API for <strong>${info.state}</strong>.
+        <i class="fa-solid fa-wind"></i> <strong>DATA SOURCE CONFIRMATION:</strong> Pulled securely from EPA AirNow API for <strong>${info.state}</strong>.
     </div>`;
     openFloatingModal(`AQI TELEMETRY: ${info.parameter} (${info.region})`, body);
 }
