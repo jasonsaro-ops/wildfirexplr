@@ -74,7 +74,7 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .fire-card:hover { border-color: #00ffcc; background: #1f242c; }
+        .fire-card:hover { border-color: #ff3300; background: #1f242c; box-shadow: 0 0 8px rgba(255, 51, 0, 0.2); }
         
         .aqi-interactive-card {
             background: #161b22;
@@ -85,7 +85,7 @@
             transition: all 0.2s;
         }
         .aqi-interactive-card:hover {
-            border-color: #ff9900;
+            border-color: #00ffcc;
             background: #1f242c;
         }
 
@@ -123,10 +123,25 @@
         .hub-modal-close:hover { color: #ff5555; }
         .hub-modal-body { padding: 20px; overflow-y: auto; color: #fff; }
 
-        /* Leaflet Dark Theme Overrides */
+        /* Leaflet Map & Custom Fire Marker Overrides */
         .leaflet-container { background: #0d1117 !important; font-family: 'Share Tech Mono', monospace !important; }
-        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #161b22 !important; color: #00ffcc !important; border: 1px solid #ff6600; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #161b22 !important; color: #00ffcc !important; border: 1px solid #ff3300; }
         .leaflet-popup-content { font-size: 0.85rem; }
+        
+        .fire-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            color: #ff3300;
+            text-shadow: 0px 0px 4px #ff9900, 0px 0px 8px #000;
+            animation: flicker 1.2s infinite alternate;
+            cursor: pointer;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.85; transform: scale(0.9); text-shadow: 0px 0px 4px #ff9900; }
+            100% { opacity: 1; transform: scale(1.15); text-shadow: 0px 0px 8px #ff6600, 0px 0px 12px #ff3300; }
+        }
 
         /* Golden Layout Style Customizations */
         .lm_header { background: #161b22 !important; }
