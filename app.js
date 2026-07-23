@@ -16,6 +16,8 @@ let wfigsMarkersGroup = null;
 let eonetMarkersGroup = null;
 let activePerimeter = null;
 
+let initialMapFit = false; // Tracks if map bounds have been set to fit all incidents
+
 let alertSoundEnabled = false;
 let previousAlertCount = 0;
 let alertAudio = null;
@@ -82,7 +84,6 @@ const layout = new GoldenLayout(config, '#desktopLayoutContainer');
 layout.registerComponent('wildfireMap', function(container) {
     container.getElement().html(`
         <div style="position:relative; width:100%; height:100%; background:#0d1117;">
-            <!-- Redesigned Compact Map Control Bar (Does not obscure map) -->
             <div id="mapControls" style="position:absolute; top:8px; left:8px; right:8px; z-index:1000; background:rgba(13, 17, 23, 0.88); backdrop-filter:blur(6px); border:1px solid #ff6600; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
                 <div style="display:flex; align-items:center; gap:6px; color:#ff9900; font-weight:bold; font-size:0.75rem;">
                     <i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.9rem;"></i> 
@@ -138,6 +139,18 @@ layout.registerComponent('nwsAlerts', function(container) {
 layout.registerComponent('fireAnalytics', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="display:flex; flex-direction:column; gap:10px;">
+            
+            <!-- NEW METRICS CONTROL BAR -->
+            <div style="background:rgba(13, 17, 23, 0.88); border:1px solid #ff6600; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                <div style="display:flex; align-items:center; gap:6px; color:#ff9900; font-weight:bold; font-size:0.75rem;">
+                    <i class="fa-solid fa-chart-pie" style="color:#ff3300; font-size:0.9rem;"></i> 
+                    <span>METRICS FILTER:</span>
+                </div>
+                <select id="metricsStateFilter" style="background:#161b22; color:#00ffcc; border:1px solid #30363d; padding:4px 8px; font-family:'Share Tech Mono', monospace; font-size:0.72rem; border-radius:3px; cursor:pointer;" onchange="applyMetricsFilter()">
+                    <option value="ALL">ALL STATES</option>
+                </select>
+            </div>
+
             <!-- Clickable Stat Summary Cards -->
             <div id="fire-summary-stats" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
                 <div class="stat-card" onclick="openMetricsDetailModal('count')" title="Click for Detailed Incident List">
@@ -239,7 +252,6 @@ function fetchFIRMSData() {
             if (firmsMarkersGroup) firmsMarkersGroup.clearLayers();
             firmsMapMarkers = {};
 
-            // Red Flame Icon for FIRMS Hotspots
             const redFlameIcon = L.divIcon({
                 html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'fire-icon-red',
                 iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -12]
@@ -280,7 +292,7 @@ function fetchFIRMSData() {
         }).catch(err => console.error("FIRMS Error:", err));
 }
 
-// --- NASA EONET Data Handler (Additional Global/US Natural Event Tracker) ---
+// --- NASA EONET Data Handler ---
 function fetchEONETData() {
     fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&category=wildfires&limit=40')
         .then(res => res.json())
@@ -335,6 +347,7 @@ function fetchWFIGSData() {
         .then(r => r.json())
         .then(wfigsData => {
             const feats = (wfigsData && wfigsData.features) ? wfigsData.features : [];
+            // Retrieve ALL valid incidents, removing the previous 150 item limit cap
             const incidents = feats
                 .map(f => ({ attributes: f.attributes, geometry: f.geometry }))
                 .filter(item => item.attributes.IncidentSize > 0)
@@ -345,18 +358,17 @@ function fetchWFIGSData() {
             
             const currentStateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'ALL';
             
-            let listHtml = ''; let totalAcres = 0; let totalContainedSum = 0; let containedCount = 0;
-            const topIncidents = incidents.slice(0, 150);
+            let listHtml = ''; 
             
-            // Prominent Red Flame Icon for WFIGS Active Incidents
             const wfigsRedIcon = L.divIcon({
                 html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'wfigs-icon-red',
                 iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12]
             });
 
             let statesSet = new Set();
+            let bounds = []; // Array to store all coordinates for auto-fitting
 
-            topIncidents.forEach((item, idx) => {
+            incidents.forEach((item, idx) => {
                 const attr = item.attributes;
                 const fireKey = `wfigs-${idx}`;
                 globalWildfireCache[fireKey] = attr;
@@ -367,11 +379,6 @@ function fetchWFIGSData() {
                 const state = attr.POOState || 'US';
                 const county = attr.POOCounty || '';
                 if (state !== 'US') statesSet.add(state);
-
-                if (attr.IncidentSize) totalAcres += attr.IncidentSize;
-                if (attr.PercentContained !== null && attr.PercentContained !== undefined) {
-                    totalContainedSum += attr.PercentContained; containedCount++;
-                }
 
                 const lat = (item.geometry && item.geometry.y) ? item.geometry.y : null;
                 const lon = (item.geometry && item.geometry.x) ? item.geometry.x : null;
@@ -394,6 +401,7 @@ function fetchWFIGSData() {
                     
                     if (currentStateFilter === 'ALL' || currentStateFilter === state) {
                         wfigsMarkersGroup.addLayer(marker);
+                        bounds.push([lat, lon]);
                     }
                 }
 
@@ -409,25 +417,73 @@ function fetchWFIGSData() {
                     </div>`;
             });
 
-            // Update State Filter Select Dropdown
-            const selectEl = document.getElementById('stateFilter');
-            if (selectEl) {
-                const sortedStates = Array.from(statesSet).sort();
-                let optionsHtml = `<option value="ALL">ALL STATES</option>`;
-                sortedStates.forEach(s => { optionsHtml += `<option value="${s}" ${currentStateFilter === s ? 'selected' : ''}>${s}</option>`; });
-                selectEl.innerHTML = optionsHtml;
+            // Populate Map Dropdown
+            const selectElMap = document.getElementById('stateFilter');
+            const sortedStates = Array.from(statesSet).sort();
+            if (selectElMap) {
+                let optionsHtmlMap = `<option value="ALL">ALL STATES</option>`;
+                sortedStates.forEach(s => { optionsHtmlMap += `<option value="${s}" ${currentStateFilter === s ? 'selected' : ''}>${s}</option>`; });
+                selectElMap.innerHTML = optionsHtmlMap;
+            }
+
+            // Populate Analytics/Metrics Dropdown
+            const selectElMetrics = document.getElementById('metricsStateFilter');
+            if (selectElMetrics) {
+                const currentMetricsFilter = selectElMetrics.value || 'ALL';
+                let optionsHtmlMetrics = `<option value="ALL">ALL STATES</option>`;
+                sortedStates.forEach(s => { optionsHtmlMetrics += `<option value="${s}" ${currentMetricsFilter === s ? 'selected' : ''}>${s}</option>`; });
+                selectElMetrics.innerHTML = optionsHtmlMetrics;
             }
 
             $('#wildfire-list-target').html(listHtml || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE WFIGS INCIDENTS DETECTED</span>');
-            $('#stat-count').text(incidents.length);
-            $('#stat-acres').text(Math.round(totalAcres).toLocaleString());
-            $('#stat-contained').text(containedCount > 0 ? Math.round(totalContainedSum / containedCount) + '%' : 'N/A');
+            
+            // Auto-Fit all active markers to map bounds on initial load
+            if (!initialMapFit && bounds.length > 0 && activeLeafletMap) {
+                activeLeafletMap.fitBounds(L.latLngBounds(bounds), {padding: [50, 50]});
+                initialMapFit = true;
+            }
 
-            renderWildfireChart(topIncidents.slice(0, 8));
+            // Route default/current calculations through the dynamic update function
+            const activeMetricsFilter = selectElMetrics ? selectElMetrics.value : 'ALL';
+            updateMetricsDisplay(activeMetricsFilter);
+
         }).catch(err => {
             console.error("WFIGS feed error:", err);
             $('#wildfire-list-target').html('<span style="color:#ff5555; font-size:0.8rem;">INCIDENT WFIGS FEED TIMEOUT</span>');
         });
+}
+
+// --- Dynamic Metrics Panel Handlers ---
+function applyMetricsFilter() {
+    const state = document.getElementById('metricsStateFilter').value;
+    updateMetricsDisplay(state);
+}
+
+function updateMetricsDisplay(stateFilter) {
+    let items = Object.values(globalWildfireCache);
+    let filteredItems = stateFilter === 'ALL' ? items : items.filter(i => i.POOState === stateFilter);
+    
+    let totalAcres = 0;
+    let containedSum = 0;
+    let containedCount = 0;
+
+    filteredItems.forEach(attr => {
+        if (attr.IncidentSize) totalAcres += attr.IncidentSize;
+        if (attr.PercentContained !== null && attr.PercentContained !== undefined) {
+            containedSum += attr.PercentContained; 
+            containedCount++;
+        }
+    });
+
+    $('#stat-count').text(filteredItems.length);
+    $('#stat-acres').text(Math.round(totalAcres).toLocaleString());
+    $('#stat-contained').text(containedCount > 0 ? Math.round(containedSum / containedCount) + '%' : 'N/A');
+
+    // Slice top 8 from the filtered pool and format back for the chart function
+    let topForChart = [...filteredItems].sort((a,b) => (b.IncidentSize || 0) - (a.IncidentSize || 0)).slice(0, 8);
+    let formattedForChart = topForChart.map(attr => ({ attributes: attr }));
+    
+    renderWildfireChart(formattedForChart);
 }
 
 function openWfigsOnMap(key) {
@@ -437,7 +493,6 @@ function openWfigsOnMap(key) {
     
     if (activePerimeter) { activeLeafletMap.removeLayer(activePerimeter); activePerimeter = null; }
     
-    // Draw fire perimeter circle ring (Area = pi * r^2. 1 acre = 4046.86 sq meters)
     const acres = attr.IncidentSize || 0;
     if (acres > 0) {
         const radiusMeters = Math.sqrt((acres * 4046.86) / Math.PI);
@@ -455,15 +510,18 @@ function openWfigsOnMap(key) {
     setTimeout(() => item.marker.openPopup(), 1500);
 }
 
-// --- Interactive Detailed Modal for Clickable Metrics ---
+// --- Interactive Detailed Modal for Clickable Metrics (Filter Aware) ---
 function openMetricsDetailModal(type) {
+    const currentStateFilter = document.getElementById('metricsStateFilter') ? document.getElementById('metricsStateFilter').value : 'ALL';
     const keys = Object.keys(globalWildfireCache);
+    
     if (keys.length === 0) {
-        openFloatingModal("NATIONAL METRICS REPORT", "<p>Wildfire dataset is currently syncing. Please wait a moment...</p>");
+        openFloatingModal("METRICS REPORT", "<p>Wildfire dataset is currently syncing. Please wait a moment...</p>");
         return;
     }
 
-    let items = keys.map(k => globalWildfireCache[k]);
+    let allItems = keys.map(k => globalWildfireCache[k]);
+    let items = currentStateFilter === 'ALL' ? allItems : allItems.filter(i => i.POOState === currentStateFilter);
     
     let stateMap = {};
     let containmentBins = { "0-25%": 0, "26-50%": 0, "51-75%": 0, "76-99%": 0, "100%": 0, "Unreported": 0 };
@@ -488,15 +546,16 @@ function openMetricsDetailModal(type) {
     });
 
     let sortedStates = Object.keys(stateMap).sort((a,b) => stateMap[b].acres - stateMap[a].acres);
+    let titlePrefix = currentStateFilter === 'ALL' ? "NATIONAL" : `${currentStateFilter} STATE`;
 
     let title = "";
     let html = "";
 
     if (type === 'acres') {
-        title = "NATIONAL ACREAGE BURNED ANALYSIS";
+        title = `${titlePrefix} ACREAGE BURNED ANALYSIS`;
         html = `
             <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #ff6600;">
-                <div style="font-size:0.95rem; color:#ff9900; font-weight:bold;"><i class="fa-solid fa-chart-pie"></i> TOTAL NATIONAL BURN AREA: ${Math.round(totalAcres).toLocaleString()} ACRES</div>
+                <div style="font-size:0.95rem; color:#ff9900; font-weight:bold;"><i class="fa-solid fa-chart-pie"></i> TOTAL BURN AREA: ${Math.round(totalAcres).toLocaleString()} ACRES</div>
                 <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Reported burn acreage compiled across NIFC Interagency and State Geographic Areas.</div>
             </div>
             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
@@ -505,7 +564,7 @@ function openMetricsDetailModal(type) {
                         <th style="padding:8px;">STATE / REGION</th>
                         <th style="padding:8px;">ACTIVE FIRES</th>
                         <th style="padding:8px;">TOTAL ACRES BURNED</th>
-                        <th style="padding:8px;">% OF USA TOTAL</th>
+                        <th style="padding:8px;">% OF FILTERED TOTAL</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -521,11 +580,11 @@ function openMetricsDetailModal(type) {
         });
         html += `</tbody></table>`;
     } else if (type === 'contained') {
-        title = "FIRE CONTAINMENT DISTRIBUTION MATRIX";
+        title = `${titlePrefix} FIRE CONTAINMENT DISTRIBUTION`;
         html = `
             <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #00ff55;">
                 <div style="font-size:0.95rem; color:#00ff55; font-weight:bold;"><i class="fa-solid fa-shield-halved"></i> CONTAINMENT PROGRESSION BREAKDOWN</div>
-                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Perimeter containment progress across tracked active wildland fires nationwide.</div>
+                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Perimeter containment progress across tracked active wildland fires.</div>
             </div>
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:15px;">`;
         
@@ -539,7 +598,7 @@ function openMetricsDetailModal(type) {
         });
         html += `</div>`;
     } else {
-        title = "ACTIVE TRACKED INCIDENTS LISTING";
+        title = `${titlePrefix} ACTIVE TRACKED INCIDENTS LISTING`;
         html = `
             <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #00ffcc;">
                 <div style="font-size:0.95rem; color:#00ffcc; font-weight:bold;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> TOTAL TRACKED INCIDENTS: ${items.length}</div>
@@ -571,7 +630,7 @@ function openMetricsDetailModal(type) {
     openFloatingModal(title, html);
 }
 
-// --- Redesigned Map Controls Logic ---
+// --- Map Control Logic ---
 function applyStateFilter() {
     const state = document.getElementById('stateFilter').value;
     let bounds = [];
