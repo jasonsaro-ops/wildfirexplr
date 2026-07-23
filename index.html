@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WILDFIREXPLR // US ACTIVE WILDFIRE & ENVIRONMENTAL DASHBOARD</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Golden Layout Stylesheets -->
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-base.css" />
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-dark-theme.css" />
+
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d1117;
+            font-family: 'Share Tech Mono', monospace;
+            color: #00ffcc;
+        }
+        #header-bar {
+            height: 40px;
+            background: #161b22;
+            border-bottom: 2px solid #ff6600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+        .title {
+            font-size: 1.05rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 5px rgba(255,102,0,0.6);
+            color: #ff9900;
+        }
+        .timer-badge {
+            background: #21262d;
+            padding: 4px 10px;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #00ffcc;
+        }
+        #desktopLayoutContainer {
+            width: 100%;
+            height: calc(100vh - 40px);
+            position: relative;
+        }
+        .weather-component {
+            padding: 15px;
+            height: 100%;
+            background: #0d1117;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .fire-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-left: 4px solid #ff6600;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .fire-card:hover { border-color: #00ffcc; background: #1f242c; }
+        .hub-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 17, 23, 0.88);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .hub-modal-content {
+            background: #161b22;
+            border: 2px solid #ff6600;
+            width: 95%;
+            max-width: 900px;
+            max-height: 85vh;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .hub-modal-header {
+            background: #21262d;
+            padding: 12px 20px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .hub-modal-title { font-size: 1.1rem; font-weight: bold; color: #ff9900; text-transform: uppercase; }
+        .hub-modal-close { color: #8b949e; cursor: pointer; font-size: 1.2rem; }
+        .hub-modal-close:hover { color: #ff5555; }
+        .hub-modal-body { padding: 20px; overflow-y: auto; color: #fff; }
+
+        /* Golden Layout Style Customizations */
+        .lm_header { background: #161b22 !important; }
+        .lm_tab { background: #21262d !important; color: #8b949e !important; font-family: 'Share Tech Mono', monospace !important; border: 1px solid #30363d !important;}
+        .lm_tab.lm_active { background: #0d1117 !important; color: #ff9900 !important; border-bottom: none !important; box-shadow: 0 -2px 0 #ff6600 inset;}
+        .lm_content { background: #0d1117 !important; border: 1px solid #21262d; }
+    </style>
+</head>
+<body>
+
+    <div id="header-bar">
+        <div class="title"><i class="fa-solid fa-fire-flame-curved"></i> WILDFIREXPLR // NATIONWIDE INCIDENT & ENVIRONMENTAL MONITORING MATRIX</div>
+        <div class="timer-badge">SYNC REFRESH: <span id="countdown">120</span>s</div>
+    </div>
+
+    <div id="desktopLayoutContainer"></div>
+
+    <div id="hubFloatingModal" class="hub-modal">
+        <div class="hub-modal-content">
+            <div class="hub-modal-header">
+                <div id="modalTitle" class="hub-modal-title">Incident Telemetry</div>
+                <div class="hub-modal-close" onclick="closeFloatingModal()"><i class="fa-solid fa-xmark"></i></div>
+            </div>
+            <div id="modalBody" class="hub-modal-body">Querying multi-agency feeds...</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/dist/goldenlayout.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="app.js"></script>
+</body>
+</html>
