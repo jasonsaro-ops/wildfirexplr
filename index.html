@@ -38,11 +38,26 @@
             z-index: 100;
         }
         .title {
-            font-size: 1.05rem;
+            font-size: 1rem;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             text-shadow: 0 0 5px rgba(255,102,0,0.6);
             color: #ff9900;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sources-badges {
+            display: flex;
+            gap: 6px;
+            font-size: 0.65rem;
+        }
+        .source-badge {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #00ffcc;
+            padding: 2px 6px;
+            border-radius: 3px;
         }
         .timer-badge {
             background: #21262d;
@@ -58,7 +73,7 @@
             position: relative;
         }
         .weather-component {
-            padding: 15px;
+            padding: 12px;
             height: 100%;
             background: #0d1117;
             box-sizing: border-box;
@@ -67,16 +82,33 @@
         .fire-card {
             background: #161b22;
             border: 1px solid #30363d;
-            border-left: 4px solid #ff6600;
+            border-left: 4px solid #ff3300;
             padding: 10px 12px;
             margin-bottom: 8px;
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .fire-card:hover { border-color: #ff3300; background: #1f242c; box-shadow: 0 0 8px rgba(255, 51, 0, 0.2); }
-        .wfigs-card:hover { border-color: #00ffcc; box-shadow: 0 0 8px rgba(0, 255, 204, 0.2); }
-        
+        .fire-card:hover { border-color: #ff3300; background: #1f242c; box-shadow: 0 0 8px rgba(255, 51, 0, 0.3); }
+        .wfigs-card:hover { border-color: #00ffcc; box-shadow: 0 0 8px rgba(0, 255, 204, 0.3); }
+
+        /* Clickable Stat Cards */
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            border-color: #ff6600;
+            background: #1f242c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(255, 102, 0, 0.25);
+        }
+
         .aqi-interactive-card {
             background: #161b22;
             border: 1px solid #30363d;
@@ -121,26 +153,28 @@
         .hub-modal-close:hover { color: #ff5555; }
         .hub-modal-body { padding: 20px; overflow-y: auto; color: #fff; }
 
-        /* Leaflet Map Overrides */
+        /* Leaflet Map & Red Flame Markers */
         .leaflet-container { background: #0d1117 !important; font-family: 'Share Tech Mono', monospace !important; }
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #161b22 !important; color: #fff !important; border: 1px solid #ff3300; }
         .wfigs-popup .leaflet-popup-content-wrapper, .wfigs-popup .leaflet-popup-tip { border-color: #00ffcc; }
         .leaflet-popup-content { font-size: 0.85rem; }
         
-        .fire-icon {
+        .fire-icon-red {
             display: flex; justify-content: center; align-items: center;
-            font-size: 16px; color: #ff3300; text-shadow: 0px 0px 4px #ff9900, 0px 0px 8px #000;
-            animation: flicker 1.2s infinite alternate; cursor: pointer;
+            font-size: 18px; color: #ff3300;
+            text-shadow: 0px 0px 6px #ff0000, 0px 0px 10px #ff6600;
+            animation: flamePulse 1.2s infinite alternate; cursor: pointer;
         }
-        .wfigs-icon {
+        .wfigs-icon-red {
             display: flex; justify-content: center; align-items: center;
-            font-size: 18px; color: #00ffcc; text-shadow: 0px 0px 4px #00ffcc, 0px 0px 8px #000;
-            cursor: pointer;
+            font-size: 22px; color: #ff2200;
+            text-shadow: 0px 0px 8px #ff0000, 0px 0px 14px #ff5500;
+            animation: flamePulse 1.4s infinite alternate; cursor: pointer;
         }
 
-        @keyframes flicker {
-            0% { opacity: 0.85; transform: scale(0.9); text-shadow: 0px 0px 4px #ff9900; }
-            100% { opacity: 1; transform: scale(1.15); text-shadow: 0px 0px 8px #ff6600, 0px 0px 12px #ff3300; }
+        @keyframes flamePulse {
+            0% { transform: scale(0.92); opacity: 0.85; filter: drop-shadow(0 0 2px #ff3300); }
+            100% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 8px #ff0000); }
         }
 
         /* Golden Layout Overrides */
@@ -150,17 +184,26 @@
         .lm_content { background: #0d1117 !important; border: 1px solid #21262d; }
 
         .btn-control {
-            flex: 1; background: #161b22; border: 1px solid #30363d; cursor: pointer; padding: 6px; 
+            background: #161b22; border: 1px solid #30363d; cursor: pointer; padding: 4px 8px; 
             font-family: 'Share Tech Mono', monospace; border-radius: 3px; transition: 0.2s;
         }
-        .btn-control:hover { background: #21262d; }
+        .btn-control:hover { background: #21262d; border-color: #ff6600; }
     </style>
 </head>
 <body>
 
     <div id="header-bar">
-        <div class="title"><i class="fa-solid fa-fire-flame-curved"></i> WILDFIREXPLR // NATIONWIDE INCIDENT & ENVIRONMENTAL MONITORING MATRIX</div>
-        <div class="timer-badge">SYNC REFRESH: <span id="countdown">120</span>s</div>
+        <div class="title">
+            <i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> WILDFIREXPLR // NATIONWIDE FIRE & ENVIRONMENTAL MATRIX
+        </div>
+        <div class="sources-badges">
+            <span class="source-badge"><i class="fa-solid fa-shield-halved"></i> NIFC WFIGS</span>
+            <span class="source-badge"><i class="fa-solid fa-satellite"></i> NASA FIRMS</span>
+            <span class="source-badge"><i class="fa-solid fa-globe"></i> NASA EONET</span>
+            <span class="source-badge"><i class="fa-solid fa-cloud-sun"></i> NWS</span>
+            <span class="source-badge"><i class="fa-solid fa-wind"></i> EPA AirNow</span>
+        </div>
+        <div class="timer-badge">SYNC: <span id="countdown">120</span>s</div>
     </div>
 
     <div id="desktopLayoutContainer"></div>
@@ -168,10 +211,10 @@
     <div id="hubFloatingModal" class="hub-modal">
         <div class="hub-modal-content">
             <div class="hub-modal-header">
-                <div id="modalTitle" class="hub-modal-title">Incident Telemetry</div>
+                <div id="modalTitle" class="hub-modal-title">Telemetry Overview</div>
                 <div class="hub-modal-close" onclick="closeFloatingModal()"><i class="fa-solid fa-xmark"></i></div>
             </div>
-            <div id="modalBody" class="hub-modal-body">Querying multi-agency feeds...</div>
+            <div id="modalBody" class="hub-modal-body">Querying interagency feeds...</div>
         </div>
     </div>
 
