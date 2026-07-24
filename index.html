@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WILDFIREXPLR // US ACTIVE WILDFIRE & ENVIRONMENTAL DASHBOARD</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <title>WILDFIREXPLR // National Fire &amp; Environmental Intelligence</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&family=Orbitron:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -16,152 +16,278 @@
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-dark-theme.css" />
 
     <style>
+        :root {
+            --bg-void:        #05070a;
+            --bg-base:        #0a0e14;
+            --bg-panel:       #10151d;
+            --bg-panel-raised:#151b25;
+            --bg-inset:       #080b10;
+            --border-hair:    rgba(148, 163, 184, 0.10);
+            --border-soft:    rgba(148, 163, 184, 0.16);
+            --accent-orange:  #ff7a1a;
+            --accent-orange-soft: #ffb347;
+            --accent-amber:   #ffcc33;
+            --accent-teal:    #2de3c4;
+            --accent-red:     #ff4433;
+            --accent-green:   #35e08a;
+            --text-primary:   #eef2f7;
+            --text-secondary: #9aa7b8;
+            --text-dim:       #5d6b7d;
+            --font-display:   'Orbitron', 'Share Tech Mono', monospace;
+            --font-heading:   'Rajdhani', 'Share Tech Mono', sans-serif;
+            --font-mono:      'Share Tech Mono', monospace;
+        }
+
+        * { box-sizing: border-box; }
+
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0d1117;
-            font-family: 'Share Tech Mono', monospace;
-            color: #00ffcc;
+            background:
+                radial-gradient(ellipse 1200px 700px at 15% -10%, rgba(255,122,26,0.06), transparent 60%),
+                radial-gradient(ellipse 1000px 600px at 100% 0%, rgba(45,227,196,0.05), transparent 55%),
+                var(--bg-void);
+            font-family: var(--font-mono);
+            color: var(--text-primary);
         }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-inset); }
+        ::-webkit-scrollbar-thumb { background: #2a323e; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-orange); }
+
+        /* ================= HEADER ================= */
         #header-bar {
-            height: 40px;
-            background: #161b22;
-            border-bottom: 2px solid #ff6600;
+            height: 54px;
+            background: linear-gradient(180deg, #10151d 0%, #0b0f15 100%);
+            border-bottom: 1px solid var(--border-soft);
+            box-shadow: 0 1px 0 rgba(255,122,26,0.35), 0 8px 24px rgba(0,0,0,0.45);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 22px;
             box-sizing: border-box;
             z-index: 100;
-        }
-        .title {
-            font-size: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            text-shadow: 0 0 5px rgba(255,102,0,0.6);
-            color: #ff9900;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .sources-badges {
-            display: flex;
-            gap: 6px;
-            font-size: 0.65rem;
-        }
-        .source-badge {
-            background: #21262d;
-            border: 1px solid #30363d;
-            color: #00ffcc;
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
-        .timer-badge {
-            background: #21262d;
-            padding: 4px 10px;
-            border: 1px solid #30363d;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            color: #00ffcc;
-        }
-        #desktopLayoutContainer {
-            width: 100%;
-            height: calc(100vh - 40px);
             position: relative;
         }
+        #header-bar::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; bottom: -1px;
+            height: 1px;
+            background: linear-gradient(90deg, var(--accent-orange) 0%, rgba(255,122,26,0) 45%, rgba(45,227,196,0) 55%, var(--accent-teal) 100%);
+            opacity: 0.7;
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-mark {
+            width: 34px; height: 34px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            background: linear-gradient(145deg, rgba(255,122,26,0.18), rgba(255,122,26,0.02));
+            border: 1px solid rgba(255,122,26,0.35);
+            color: var(--accent-orange-soft);
+            font-size: 1.05rem;
+            box-shadow: 0 0 16px rgba(255,122,26,0.25) inset, 0 0 10px rgba(255,122,26,0.15);
+        }
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .title {
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: var(--text-primary);
+        }
+        .title span { color: var(--accent-orange-soft); }
+        .subtitle {
+            font-family: var(--font-heading);
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 16px; }
+
+        .live-pulse { display: flex; align-items: center; gap: 7px; padding-right: 14px; border-right: 1px solid var(--border-hair); }
+        .live-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green), 0 0 2px var(--accent-green);
+            animation: livePulse 1.8s infinite ease-in-out;
+        }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.45; transform: scale(0.8); }
+        }
+        .live-label { font-family: var(--font-heading); font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px; color: var(--accent-green); }
+
+        .sources-badges { display: flex; gap: 6px; }
+        .source-badge {
+            display: flex; align-items: center; gap: 5px;
+            background: var(--bg-panel-raised);
+            border: 1px solid var(--border-soft);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-family: var(--font-heading);
+            font-size: 0.66rem;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            transition: all 0.2s ease;
+        }
+        .source-badge i { color: var(--accent-orange-soft); font-size: 0.7rem; }
+        .source-badge:hover { border-color: rgba(255,122,26,0.45); color: var(--text-primary); box-shadow: 0 0 12px rgba(255,122,26,0.15); }
+
+        .timer-ring-wrap { display: flex; align-items: center; gap: 8px; }
+        .timer-ring {
+            position: relative;
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: conic-gradient(var(--accent-orange) calc(var(--pct, 100) * 1%), #1c2430 0);
+        }
+        .timer-ring::before {
+            content: "";
+            position: absolute; inset: 3px;
+            border-radius: 50%;
+            background: var(--bg-panel);
+        }
+        .timer-ring span {
+            position: relative; z-index: 1;
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            font-weight: bold;
+            color: var(--accent-orange-soft);
+        }
+        .timer-caption { font-family: var(--font-heading); font-size: 0.62rem; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ================= LAYOUT ================= */
+        #desktopLayoutContainer {
+            width: 100%;
+            height: calc(100vh - 54px);
+            position: relative;
+            background: var(--bg-base);
+        }
+
         .weather-component {
-            padding: 12px;
+            padding: 14px;
             height: 100%;
-            background: #0d1117;
+            background: var(--bg-base);
             box-sizing: border-box;
             overflow-y: auto;
         }
-        .fire-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-left: 4px solid #ff3300;
-            padding: 10px 12px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
+
+        .panel-label {
+            display: flex; align-items: center; gap: 7px;
+            font-family: var(--font-heading);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1.1px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-hair);
         }
-        .fire-card:hover { border-color: #ff3300; background: #1f242c; box-shadow: 0 0 8px rgba(255, 51, 0, 0.3); }
-        .wfigs-card:hover { border-color: #00ffcc; box-shadow: 0 0 8px rgba(0, 255, 204, 0.3); }
+
+        .fire-card {
+            background: linear-gradient(180deg, var(--bg-panel-raised) 0%, var(--bg-panel) 100%);
+            border: 1px solid var(--border-soft);
+            border-left: 3px solid var(--accent-red);
+            padding: 10px 13px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+        .fire-card:hover {
+            border-color: rgba(255,68,51,0.5);
+            background: linear-gradient(180deg, #1a2129 0%, #131922 100%);
+            box-shadow: 0 6px 18px rgba(255, 51, 0, 0.16);
+            transform: translateY(-1px);
+        }
+        .wfigs-card:hover { border-color: rgba(45,227,196,0.5); box-shadow: 0 6px 18px rgba(45, 227, 196, 0.14); }
 
         /* Clickable Stat Cards */
         .stat-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 4px;
-            padding: 8px;
+            background: linear-gradient(160deg, var(--bg-panel-raised), var(--bg-panel));
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            padding: 10px 8px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
         }
         .stat-card:hover {
-            border-color: #ff6600;
-            background: #1f242c;
+            border-color: rgba(255,122,26,0.5);
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(255, 102, 0, 0.25);
+            box-shadow: 0 8px 20px rgba(255, 122, 26, 0.18);
         }
 
         .aqi-interactive-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            padding: 8px;
-            border-radius: 3px;
+            background: linear-gradient(160deg, var(--bg-panel-raised), var(--bg-panel));
+            border: 1px solid var(--border-soft);
+            padding: 9px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .aqi-interactive-card:hover { border-color: #00ffcc; background: #1f242c; }
+        .aqi-interactive-card:hover { border-color: rgba(45,227,196,0.5); box-shadow: 0 6px 16px rgba(45,227,196,0.14); }
 
+        /* ================= MODAL ================= */
         .hub-modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(13, 17, 23, 0.88);
-            backdrop-filter: blur(4px);
+            background: rgba(5, 7, 10, 0.82);
+            backdrop-filter: blur(6px);
             z-index: 10000;
             justify-content: center;
             align-items: center;
         }
         .hub-modal-content {
-            background: #161b22;
-            border: 2px solid #ff6600;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-soft);
+            box-shadow: 0 0 0 1px rgba(255,122,26,0.25), 0 24px 64px rgba(0,0,0,0.6);
             width: 95%;
             max-width: 900px;
             max-height: 85vh;
-            border-radius: 6px;
+            border-radius: 10px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            animation: modalIn 0.18s ease-out;
         }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
         .hub-modal-header {
-            background: #21262d;
-            padding: 12px 20px;
-            border-bottom: 1px solid #30363d;
+            background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+            padding: 14px 22px;
+            border-bottom: 1px solid var(--border-hair);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .hub-modal-title { font-size: 1.1rem; font-weight: bold; color: #ff9900; text-transform: uppercase; }
-        .hub-modal-close { color: #8b949e; cursor: pointer; font-size: 1.2rem; }
-        .hub-modal-close:hover { color: #ff5555; }
-        .hub-modal-body { padding: 20px; overflow-y: auto; color: #fff; }
+        .hub-modal-title { font-family: var(--font-heading); font-size: 1.02rem; font-weight: 700; letter-spacing: 0.6px; color: var(--accent-orange-soft); text-transform: uppercase; }
+        .hub-modal-close { color: var(--text-dim); cursor: pointer; font-size: 1.15rem; transition: color 0.15s ease; }
+        .hub-modal-close:hover { color: var(--accent-red); }
+        .hub-modal-body { padding: 22px; overflow-y: auto; color: var(--text-primary); }
 
-        /* Leaflet Map & Red Flame Markers */
-        .leaflet-container { background: #0d1117 !important; font-family: 'Share Tech Mono', monospace !important; }
-        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #161b22 !important; color: #fff !important; border: 1px solid #ff3300; }
-        .wfigs-popup .leaflet-popup-content-wrapper, .wfigs-popup .leaflet-popup-tip { border-color: #00ffcc; }
+        /* ================= LEAFLET MAP ================= */
+        .leaflet-container { background: var(--bg-base) !important; font-family: var(--font-mono) !important; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--bg-panel) !important; color: #fff !important; border: 1px solid var(--accent-red); border-radius: 8px !important; }
+        .wfigs-popup .leaflet-popup-content-wrapper, .wfigs-popup .leaflet-popup-tip { border-color: var(--accent-teal); }
         .leaflet-popup-content { font-size: 0.85rem; }
-        
+        .leaflet-control-zoom a { background: var(--bg-panel-raised) !important; color: var(--text-secondary) !important; border-color: var(--border-soft) !important; }
+
         .fire-icon-red {
             display: flex; justify-content: center; align-items: center;
-            font-size: 18px; color: #ff3300;
+            font-size: 18px; color: var(--accent-red);
             text-shadow: 0px 0px 6px #ff0000, 0px 0px 10px #ff6600;
             animation: flamePulse 1.2s infinite alternate; cursor: pointer;
         }
@@ -177,33 +303,92 @@
             100% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 8px #ff0000); }
         }
 
-        /* Golden Layout Overrides */
-        .lm_header { background: #161b22 !important; }
-        .lm_tab { background: #21262d !important; color: #8b949e !important; font-family: 'Share Tech Mono', monospace !important; border: 1px solid #30363d !important;}
-        .lm_tab.lm_active { background: #0d1117 !important; color: #ff9900 !important; border-bottom: none !important; box-shadow: 0 -2px 0 #ff6600 inset;}
-        .lm_content { background: #0d1117 !important; border: 1px solid #21262d; }
+        /* ================= GOLDEN LAYOUT OVERRIDES ================= */
+        .lm_goldenlayout { background: var(--bg-void) !important; }
+        .lm_content { background: var(--bg-base) !important; border: 1px solid var(--border-hair) !important; }
+        .lm_splitter { background: var(--bg-void) !important; }
+        .lm_splitter:hover, .lm_splitter.lm_dragging { background: rgba(255,122,26,0.3) !important; }
+
+        .lm_header { background: var(--bg-panel) !important; height: 32px !important; }
+        .lm_tabs { padding-left: 4px; }
+        .lm_tab {
+            background: transparent !important;
+            color: var(--text-dim) !important;
+            font-family: var(--font-heading) !important;
+            font-weight: 600 !important;
+            font-size: 0.72rem !important;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            border: none !important;
+            border-radius: 6px 6px 0 0 !important;
+            padding: 7px 16px !important;
+            margin-top: 3px !important;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+        .lm_tab:hover { color: var(--text-secondary) !important; background: rgba(255,255,255,0.03) !important; }
+        .lm_tab.lm_active {
+            background: linear-gradient(180deg, var(--bg-base) 0%, var(--bg-base) 100%) !important;
+            color: var(--accent-orange-soft) !important;
+            border-bottom: none !important;
+            box-shadow: 0 -2px 0 var(--accent-orange) inset !important;
+        }
+        .lm_tab .lm_close_tab { display: none !important; }
 
         .btn-control {
-            background: #161b22; border: 1px solid #30363d; cursor: pointer; padding: 4px 8px; 
-            font-family: 'Share Tech Mono', monospace; border-radius: 3px; transition: 0.2s;
+            background: var(--bg-panel-raised);
+            border: 1px solid var(--border-soft);
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 5px 10px;
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: 0.7rem;
+            letter-spacing: 0.4px;
+            border-radius: 5px;
+            transition: all 0.18s ease;
         }
-        .btn-control:hover { background: #21262d; border-color: #ff6600; }
+        .btn-control:hover { background: #1c232d; border-color: rgba(255,122,26,0.5); color: var(--text-primary); box-shadow: 0 0 10px rgba(255,122,26,0.15); }
+
+        select#stateFilter, select#metricsStateFilter {
+            background: var(--bg-panel-raised) !important;
+            color: var(--accent-teal) !important;
+            border: 1px solid var(--border-soft) !important;
+            font-family: var(--font-heading) !important;
+            font-weight: 600;
+            border-radius: 5px !important;
+        }
     </style>
 </head>
 <body>
 
     <div id="header-bar">
-        <div class="title">
-            <i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> WILDFIREXPLR // NATIONWIDE FIRE & ENVIRONMENTAL MATRIX
+        <div class="brand">
+            <div class="brand-mark"><i class="fa-solid fa-fire-flame-curved"></i></div>
+            <div class="brand-text">
+                <div class="title">WILDFIRE<span>XPLR</span></div>
+                <div class="subtitle">Nationwide Multi-Agency Fire &amp; Environmental Intelligence</div>
+            </div>
         </div>
-        <div class="sources-badges">
-            <span class="source-badge"><i class="fa-solid fa-shield-halved"></i> NIFC WFIGS</span>
-            <span class="source-badge"><i class="fa-solid fa-satellite"></i> NASA FIRMS</span>
-            <span class="source-badge"><i class="fa-solid fa-globe"></i> NASA EONET</span>
-            <span class="source-badge"><i class="fa-solid fa-cloud-sun"></i> NWS</span>
-            <span class="source-badge"><i class="fa-solid fa-wind"></i> EPA AirNow</span>
+
+        <div class="header-right">
+            <div class="live-pulse">
+                <div class="live-dot"></div>
+                <div class="live-label">LIVE</div>
+            </div>
+            <div class="sources-badges">
+                <span class="source-badge"><i class="fa-solid fa-shield-halved"></i> NIFC WFIGS</span>
+                <span class="source-badge" title="VIIRS Suomi NPP + NOAA-20"><i class="fa-solid fa-satellite"></i> NASA FIRMS</span>
+                <span class="source-badge"><i class="fa-solid fa-globe"></i> NASA EONET</span>
+                <span class="source-badge"><i class="fa-solid fa-cloud-sun"></i> NWS</span>
+                <span class="source-badge"><i class="fa-solid fa-wind"></i> EPA AirNow</span>
+            </div>
+            <div class="timer-ring-wrap">
+                <div class="timer-ring" id="timerRing" style="--pct:100;">
+                    <span id="countdown">120</span>
+                </div>
+                <div class="timer-caption">SYNC</div>
+            </div>
         </div>
-        <div class="timer-badge">SYNC: <span id="countdown">120</span>s</div>
     </div>
 
     <div id="desktopLayoutContainer"></div>
@@ -222,7 +407,7 @@
     <script src="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/dist/goldenlayout.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
     <script src="app.js"></script>
 </body>
 </html>
