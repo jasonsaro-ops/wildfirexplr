@@ -9,8 +9,10 @@ let globalWildfireMapCache = {};
 let globalAlertsCache = {};
 let globalEonetCache = {};
 let globalPerimeterCache = {}; // keyed by IrwinID -> GeoJSON feature (real NIFC perimeter polygons)
+let globalCalFireCache = {}; // keyed by calfire-{idx} -> normalized CAL FIRE incident record
 let firmsMapMarkers = {}; 
 let eonetMapMarkers = {};
+let calfireMapMarkers = {};
 let wildfireChartInstance = null;
 
 let activeLeafletMap = null;
@@ -18,9 +20,14 @@ let firmsMarkersGroup = null;
 let wfigsMarkersGroup = null;
 let eonetMarkersGroup = null;
 let perimetersLayerGroup = null;
+let calfireMarkersGroup = null;
 let activePerimeter = null;
+let incidentListContainer = null; // golden-layout container ref so we can retitle the panel in CAL FIRE ONLY mode
 
-let layerVisibility = { wfigs: true, firms: true, eonet: true, perimeters: true };
+let layerVisibility = { wfigs: true, firms: true, eonet: true, perimeters: true, calfire: true };
+let calFireOnlyMode = false;
+
+const CALFIRE_URL = 'https://www.fire.ca.gov/umbraco/api/IncidentApi/GeoJsonList?inactive=false';
 
 let initialMapFit = false;
 
@@ -90,7 +97,7 @@ const layout = new GoldenLayout(config, '#desktopLayoutContainer');
 // --- Component Registrations ---
 layout.registerComponent('wildfireMap', function(container) {
     container.getElement().html(`
-        <div style="position:relative; width:100%; height:100%; background:#0a0e14;">
+        <div id="mapHudFrame" style="position:relative; width:100%; height:100%; background:#0a0e14;">
             <div id="mapControls" style="position:absolute; top:10px; left:10px; right:10px; z-index:1000; background:rgba(10, 14, 20, 0.82); backdrop-filter:blur(10px); border:1px solid rgba(255,122,26,0.4); padding:8px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;">
                 <div style="display:flex; align-items:center; gap:7px; color:#ffb347; font-weight:600; font-size:0.72rem; font-family:'Rajdhani',sans-serif; letter-spacing:0.6px; text-transform:uppercase;">
                     <i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.9rem;"></i> 
@@ -105,6 +112,8 @@ layout.registerComponent('wildfireMap', function(container) {
                     <button class="btn-control" style="color:#2de3c4; font-size:0.72rem;" onclick="resetMapBounds()"><i class="fa-solid fa-compress"></i> RESET USA</button>
                     <button id="toggleEonetBtn" class="btn-control" style="color:#ff7a1a; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('eonet')"><i class="fa-solid fa-globe"></i> EONET</button>
                     <button id="togglePerimetersBtn" class="btn-control" style="color:#ffb347; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('perimeters')"><i class="fa-solid fa-draw-polygon"></i> PERIMETERS</button>
+                    <button id="toggleCalFireBtn" class="btn-control" style="color:#ffcc33; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('calfire')"><i class="fa-solid fa-mountain-sun"></i> CAL FIRE</button>
+                    <button id="calfireOnlyBtn" class="btn-control" style="color:#9aa7b8; font-size:0.72rem;" onclick="toggleCalFireOnlyMode()" title="Isolate the map and incident lists to CAL FIRE data only"><i class="fa-solid fa-crosshairs"></i> CA ONLY</button>
                 </div>
             </div>
 
@@ -112,6 +121,7 @@ layout.registerComponent('wildfireMap', function(container) {
                 <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> NIFC WFIGS Incident</div>
                 <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff7a1a;"></i> NASA EONET Incident</div>
                 <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.85em;"></i> NASA FIRMS Hotspot (VIIRS · Suomi NPP + NOAA-20)</div>
+                <div><i class="fa-solid fa-mountain-sun" style="color:#ffcc33;"></i> CAL FIRE Incident</div>
                 <div><span style="display:inline-block; width:10px; height:10px; background:rgba(255,51,0,0.35); border:1px solid #ff3300; border-radius:2px;"></span> Fire Perimeter (NIFC)</div>
             </div>
             
@@ -121,7 +131,7 @@ layout.registerComponent('wildfireMap', function(container) {
     
     setTimeout(() => {
         if (!activeLeafletMap) {
-            activeLeafletMap = L.map('leafletMapContainer', { zoomControl: false }).setView([39.8283, -98.5795], 4);
+            activeLeafletMap = L.map('leafletMapContainer', { zoomControl: false, preferCanvas: true }).setView([39.8283, -98.5795], 4);
             L.control.zoom({ position: 'bottomright' }).addTo(activeLeafletMap);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(activeLeafletMap);
 
@@ -130,6 +140,7 @@ layout.registerComponent('wildfireMap', function(container) {
             firmsMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
             wfigsMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
             eonetMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
+            calfireMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
         }
         fetchAllData();
     }, 250);
@@ -137,6 +148,7 @@ layout.registerComponent('wildfireMap', function(container) {
 
 layout.registerComponent('activeIncidentList', function(container) {
     container.getElement().html(`<div class="weather-component" id="wildfire-list-target">Querying NIFC WFIGS interagency nationwide wildfire network...</div>`);
+    incidentListContainer = container;
     container.on('open', fetchWFIGSData);
 });
 
@@ -239,6 +251,7 @@ function fetchAllData() {
     fetchWFIGSPerimeters();
     fetchNWSAlerts();
     fetchAirQualityData();
+    fetchCalFireData();
 }
 
 // --- NASA FIRMS API (Dual-Satellite: Suomi NPP + NOAA-20 VIIRS) ---
@@ -475,6 +488,27 @@ function fetchWFIGSPerimeters() {
 }
 
 // --- Layer visibility toggles for EONET markers & real fire perimeters ---
+// --- NORAD Command-Center Mode (monochrome phosphor theme) ---
+function toggleNoradMode() {
+    const isOn = document.body.classList.toggle('norad-mode');
+    const btn = document.getElementById('noradToggleBtn');
+    if (btn) btn.classList.toggle('active', isOn);
+    try { localStorage.setItem('wildfirexplr_norad', isOn ? '1' : '0'); } catch (e) { /* storage unavailable, ignore */ }
+    if (activeLeafletMap) setTimeout(() => activeLeafletMap.invalidateSize(), 200);
+}
+
+(function initNoradPreference() {
+    let saved = '0';
+    try { saved = localStorage.getItem('wildfirexplr_norad') || '0'; } catch (e) { /* storage unavailable, ignore */ }
+    if (saved === '1') {
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.add('norad-mode');
+            const btn = document.getElementById('noradToggleBtn');
+            if (btn) btn.classList.add('active');
+        });
+    }
+})();
+
 function togglePerimeterOrEonetLayer(which) {
     if (which === 'eonet') {
         layerVisibility.eonet = !layerVisibility.eonet;
@@ -485,6 +519,11 @@ function togglePerimeterOrEonetLayer(which) {
         layerVisibility.perimeters = !layerVisibility.perimeters;
         if (layerVisibility.perimeters) fetchWFIGSPerimeters();
         else if (perimetersLayerGroup) perimetersLayerGroup.clearLayers();
+    } else if (which === 'calfire') {
+        layerVisibility.calfire = !layerVisibility.calfire;
+        if (!activeLeafletMap || !calfireMarkersGroup) return;
+        calfireMarkersGroup.clearLayers();
+        if (layerVisibility.calfire) Object.values(calfireMapMarkers).forEach(m => calfireMarkersGroup.addLayer(m));
     }
     syncToggleButtonState();
 }
@@ -492,8 +531,10 @@ function togglePerimeterOrEonetLayer(which) {
 function syncToggleButtonState() {
     const eBtn = document.getElementById('toggleEonetBtn');
     const pBtn = document.getElementById('togglePerimetersBtn');
+    const cBtn = document.getElementById('toggleCalFireBtn');
     if (eBtn) { eBtn.style.opacity = layerVisibility.eonet ? '1' : '0.4'; }
     if (pBtn) { pBtn.style.opacity = layerVisibility.perimeters ? '1' : '0.4'; }
+    if (cBtn) { cBtn.style.opacity = layerVisibility.calfire ? '1' : '0.4'; }
 }
 
 function openHotspotOnMap(id) {
@@ -589,8 +630,8 @@ function fetchWFIGSData() {
                 selectElMetrics.innerHTML = optionsHtmlMetrics;
             }
 
-            // Render Incident List Pane synchronized with Map Filter
-            renderWFIGSList(currentStateFilter);
+            // Render Incident List Pane synchronized with Map Filter (unless CAL FIRE ONLY mode owns the pane)
+            renderIncidentListPane(currentStateFilter);
             
             // Auto-Fit all active markers to map bounds on initial load
             if (!initialMapFit && bounds.length > 0 && activeLeafletMap) {
@@ -655,6 +696,146 @@ function renderWFIGSList(stateFilter = 'ALL') {
     target.html(listHtml);
 }
 
+// --- CAL FIRE Incident Feed (fire.ca.gov public Incident API) ---
+function fetchCalFireData() {
+    fetch(CALFIRE_URL)
+        .then(r => r.json())
+        .then(geo => {
+            globalCalFireCache = {};
+            if (calfireMarkersGroup) calfireMarkersGroup.clearLayers();
+            calfireMapMarkers = {};
+
+            const feats = (geo && geo.features) ? geo.features : [];
+
+            const calfireIcon = L.divIcon({
+                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ffcc33; font-size:19px; text-shadow:0 0 6px rgba(255,204,51,0.85); display:block;"></i>',
+                className: 'calfire-icon',
+                iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10]
+            });
+
+            feats.forEach((f, idx) => {
+                const p = f.properties || {};
+                const geom = f.geometry || {};
+                let lat = null, lon = null;
+                if (geom.type === 'Point' && Array.isArray(geom.coordinates) && geom.coordinates.length >= 2) {
+                    lon = geom.coordinates[0]; lat = geom.coordinates[1];
+                }
+                if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
+
+                const key = `calfire-${idx}`;
+                const name = p.Name || p.IncidentName || 'Unnamed Incident';
+                const county = p.County || p.county || 'N/A';
+                const acresRaw = (p.AcresBurned !== undefined && p.AcresBurned !== null) ? Number(p.AcresBurned) : 0;
+                const acres = acresRaw ? Math.round(acresRaw).toLocaleString() : 'N/A';
+                const containedRaw = (p.PercentContained !== undefined && p.PercentContained !== null) ? Number(p.PercentContained) : null;
+                const contained = containedRaw !== null ? containedRaw + '%' : 'N/A';
+                const started = p.Started ? new Date(p.Started).toLocaleDateString() : 'N/A';
+                const adminUnit = p.AdminUnit || p.Location || 'CAL FIRE';
+
+                globalCalFireCache[key] = { name, county, acresRaw, acres, containedRaw, contained, started, adminUnit, lat, lon };
+
+                if (activeLeafletMap) {
+                    const marker = L.marker([lat, lon], { icon: calfireIcon });
+                    marker.bindPopup(`
+                        <div style="font-family:'Share Tech Mono';">
+                            <strong style="color:#ffcc33; font-size:1rem; text-transform:uppercase;"><i class="fa-solid fa-mountain-sun"></i> ${name}</strong><br>
+                            <hr style="border:1px solid #2a323e; margin:6px 0;" />
+                            <strong>County:</strong> ${county}<br>
+                            <strong>Acreage:</strong> ${acres} acres<br>
+                            <strong>Containment:</strong> ${contained}<br>
+                            <strong>Started:</strong> ${started}<br>
+                            <strong>Unit:</strong> ${adminUnit}
+                        </div>
+                    `, { className: 'calfire-popup' });
+                    calfireMapMarkers[key] = marker;
+                    if (layerVisibility.calfire || calFireOnlyMode) calfireMarkersGroup.addLayer(marker);
+                }
+            });
+
+            if (calFireOnlyMode) {
+                renderIncidentListPane();
+                updateMetricsDisplay(document.getElementById('metricsStateFilter') ? document.getElementById('metricsStateFilter').value : 'ALL');
+            }
+        }).catch(err => {
+            console.error("CAL FIRE feed error:", err);
+            if (calFireOnlyMode) $('#wildfire-list-target').html('<span style="color:#ff5555; font-size:0.8rem;">CAL FIRE FEED UNREACHABLE</span>');
+        });
+}
+
+function renderCalFireList() {
+    const target = $('#wildfire-list-target');
+    if (!target.length) return;
+
+    let incidents = Object.values(globalCalFireCache);
+    incidents.sort((a, b) => (b.acresRaw || 0) - (a.acresRaw || 0));
+
+    if (incidents.length === 0) {
+        target.html(`<span style="color:#35e08a; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE CAL FIRE INCIDENTS REPORTED</span>`);
+        return;
+    }
+
+    let listHtml = '';
+    incidents.forEach(item => {
+        listHtml += `
+            <div class="fire-card wfigs-card" style="border-left-color: #ffcc33;" title="${item.adminUnit}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#ffb347; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-mountain-sun" style="color:#ffcc33;"></i> ${item.name.toUpperCase()} (CA)</span>
+                    <span style="color:#35e08a; font-size:0.75rem; font-weight:bold;">${item.contained} Contained</span>
+                </div>
+                <div style="color:#9aa7b8; font-size:0.7rem; margin-top:3px;">
+                    County: ${item.county || 'N/A'} | Size: <strong style="color:#ff7a1a;">${item.acres} acres</strong>
+                </div>
+            </div>`;
+    });
+
+    target.html(listHtml);
+}
+
+// Dispatches the incident-list pane to either the NIFC WFIGS list or, in CAL FIRE ONLY mode, the CAL FIRE list
+function renderIncidentListPane(stateFilter = 'ALL') {
+    if (calFireOnlyMode) renderCalFireList();
+    else renderWFIGSList(stateFilter);
+}
+
+// Isolates the map and the incident/analytics panes to CAL FIRE data only, hiding NIFC/FIRMS/EONET/perimeter layers
+function toggleCalFireOnlyMode() {
+    calFireOnlyMode = !calFireOnlyMode;
+    const btn = document.getElementById('calfireOnlyBtn');
+    if (btn) {
+        btn.style.color = calFireOnlyMode ? '#ffcc33' : '#9aa7b8';
+        btn.style.borderColor = calFireOnlyMode ? 'rgba(255,204,51,0.6)' : '';
+        btn.style.boxShadow = calFireOnlyMode ? '0 0 10px rgba(255,204,51,0.25)' : 'none';
+    }
+    if (incidentListContainer) {
+        incidentListContainer.setTitle(calFireOnlyMode ? 'CAL FIRE ACTIVE INCIDENTS (CA ONLY)' : 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS)');
+    }
+
+    if (!activeLeafletMap) return;
+
+    if (calFireOnlyMode) {
+        // Hide every other agency layer so the map reflects CAL FIRE exclusively
+        if (wfigsMarkersGroup) wfigsMarkersGroup.clearLayers();
+        if (firmsMarkersGroup) firmsMarkersGroup.clearLayers();
+        if (eonetMarkersGroup) eonetMarkersGroup.clearLayers();
+        if (perimetersLayerGroup) perimetersLayerGroup.clearLayers();
+
+        if (calfireMarkersGroup) {
+            calfireMarkersGroup.clearLayers();
+            Object.values(calfireMapMarkers).forEach(m => calfireMarkersGroup.addLayer(m));
+        }
+
+        const bounds = Object.values(globalCalFireCache).map(c => [c.lat, c.lon]);
+        if (bounds.length > 0) activeLeafletMap.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] });
+        else activeLeafletMap.setView([37.0, -119.5], 6); // fall back to a California-centered view
+
+        renderIncidentListPane();
+        updateMetricsDisplay(document.getElementById('metricsStateFilter') ? document.getElementById('metricsStateFilter').value : 'ALL');
+    } else {
+        // Restore the full multi-agency picture
+        fetchAllData();
+    }
+}
+
 // --- Dynamic Map Controls & Filtering Logic ---
 function applyStateFilter() {
     const state = document.getElementById('stateFilter').value;
@@ -678,7 +859,7 @@ function applyStateFilter() {
     }
 
     // 3. Synchronize active incident list pane below map to show only selected state
-    renderWFIGSList(state);
+    renderIncidentListPane(state);
 }
 
 function toggleAllWfigs(show) {
@@ -698,7 +879,7 @@ function toggleAllWfigs(show) {
         activeLeafletMap.fitBounds(L.latLngBounds(bounds), {padding: [50, 50]});
     }
 
-    renderWFIGSList('ALL');
+    renderIncidentListPane('ALL');
 }
 
 function resetMapBounds() {
@@ -713,8 +894,18 @@ function applyMetricsFilter() {
     updateMetricsDisplay(state);
 }
 
+// Normalizes the active data source (NIFC WFIGS, or CAL FIRE when isolated) into one shared attribute shape
+function getActiveIncidentAttrs() {
+    if (calFireOnlyMode) {
+        return Object.values(globalCalFireCache).map(c => ({
+            IncidentName: c.name, POOState: 'CA', IncidentSize: c.acresRaw, PercentContained: c.containedRaw
+        }));
+    }
+    return Object.values(globalWildfireCache);
+}
+
 function updateMetricsDisplay(stateFilter) {
-    let items = Object.values(globalWildfireCache);
+    let items = getActiveIncidentAttrs();
     let filteredItems = stateFilter === 'ALL' ? items : items.filter(i => i.POOState === stateFilter);
     
     let totalAcres = 0;
@@ -779,14 +970,13 @@ function openWfigsOnMap(key) {
 // --- Interactive Detailed Modal for Clickable Metrics ---
 function openMetricsDetailModal(type) {
     const currentStateFilter = document.getElementById('metricsStateFilter') ? document.getElementById('metricsStateFilter').value : 'ALL';
-    const keys = Object.keys(globalWildfireCache);
-    
-    if (keys.length === 0) {
-        openFloatingModal("METRICS REPORT", "<p>Wildfire dataset is currently syncing. Please wait a moment...</p>");
+    const allItems = getActiveIncidentAttrs();
+
+    if (allItems.length === 0) {
+        openFloatingModal("METRICS REPORT", `<p>${calFireOnlyMode ? 'CAL FIRE' : 'Wildfire'} dataset is currently syncing. Please wait a moment...</p>`);
         return;
     }
 
-    let allItems = keys.map(k => globalWildfireCache[k]);
     let items = currentStateFilter === 'ALL' ? allItems : allItems.filter(i => i.POOState === currentStateFilter);
     
     let stateMap = {};
