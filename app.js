@@ -7,14 +7,20 @@ const FIRMS_MAP_KEY = "215020163103e2209b2fb8253d20b037";
 let globalWildfireCache = {};
 let globalWildfireMapCache = {}; 
 let globalAlertsCache = {};
+let globalEonetCache = {};
+let globalPerimeterCache = {}; // keyed by IrwinID -> GeoJSON feature (real NIFC perimeter polygons)
 let firmsMapMarkers = {}; 
+let eonetMapMarkers = {};
 let wildfireChartInstance = null;
 
 let activeLeafletMap = null;
 let firmsMarkersGroup = null;
 let wfigsMarkersGroup = null;
 let eonetMarkersGroup = null;
+let perimetersLayerGroup = null;
 let activePerimeter = null;
+
+let layerVisibility = { wfigs: true, firms: true, eonet: true, perimeters: true };
 
 let initialMapFit = false;
 
@@ -96,7 +102,16 @@ layout.registerComponent('wildfireMap', function(container) {
                     <button class="btn-control" style="color:#00ff55; font-size:0.72rem;" onclick="toggleAllWfigs(true)"><i class="fa-solid fa-eye"></i> ENABLE ALL</button>
                     <button class="btn-control" style="color:#ff5555; font-size:0.72rem;" onclick="toggleAllWfigs(false)"><i class="fa-solid fa-eye-slash"></i> DISABLE ALL</button>
                     <button class="btn-control" style="color:#00ffcc; font-size:0.72rem;" onclick="resetMapBounds()"><i class="fa-solid fa-compress"></i> RESET USA</button>
+                    <button id="toggleEonetBtn" class="btn-control" style="color:#ff6600; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('eonet')"><i class="fa-solid fa-globe"></i> EONET</button>
+                    <button id="togglePerimetersBtn" class="btn-control" style="color:#ff9900; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('perimeters')"><i class="fa-solid fa-draw-polygon"></i> PERIMETERS</button>
                 </div>
+            </div>
+
+            <div id="mapLegend" style="position:absolute; bottom:24px; left:8px; z-index:1000; background:rgba(13, 17, 23, 0.88); backdrop-filter:blur(6px); border:1px solid #30363d; padding:6px 10px; border-radius:4px; font-size:0.65rem; color:#8b949e; display:flex; flex-direction:column; gap:3px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> NIFC WFIGS Incident</div>
+                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff6600;"></i> NASA EONET Incident</div>
+                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.85em;"></i> NASA FIRMS Hotspot</div>
+                <div><span style="display:inline-block; width:10px; height:10px; background:rgba(255,51,0,0.35); border:1px solid #ff3300; border-radius:2px;"></span> Fire Perimeter (NIFC)</div>
             </div>
             
             <div id="leafletMapContainer" style="width:100%; height:100%;"></div>
@@ -109,6 +124,8 @@ layout.registerComponent('wildfireMap', function(container) {
             L.control.zoom({ position: 'bottomright' }).addTo(activeLeafletMap);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(activeLeafletMap);
 
+            // Perimeters added first so incident/hotspot markers always render visually on top
+            perimetersLayerGroup = L.layerGroup().addTo(activeLeafletMap);
             firmsMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
             wfigsMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
             eonetMarkersGroup = L.layerGroup().addTo(activeLeafletMap);
@@ -175,9 +192,13 @@ layout.registerComponent('fireAnalytics', function(container) {
 layout.registerComponent('satelliteHotspots', function(container) {
     container.getElement().html(`
         <div class="weather-component">
-            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> SATELLITE HOTSPOTS (FIRMS & EONET)</div>
-            <div id="firms-hotspots" style="display:flex; flex-direction:column; gap:6px;">
-                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA satellite feeds...</span>
+            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NASA FIRMS THERMAL HOTSPOTS</div>
+            <div id="firms-hotspots" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA FIRMS satellite feed...</span>
+            </div>
+            <div style="font-size:0.75rem; color:#ff9900; font-weight:bold; margin-bottom:8px; padding-top:8px; border-top:1px solid #30363d;"><i class="fa-solid fa-globe"></i> NASA EONET US WILDFIRE EVENTS</div>
+            <div id="eonet-hotspots" style="display:flex; flex-direction:column; gap:6px;">
+                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA EONET v3 feed...</span>
             </div>
         </div>
     `);
@@ -214,6 +235,7 @@ function fetchAllData() {
     fetchFIRMSData();
     fetchEONETData();
     fetchWFIGSData();
+    fetchWFIGSPerimeters();
     fetchNWSAlerts();
     fetchAirQualityData();
 }
@@ -292,13 +314,34 @@ function fetchFIRMSData() {
         }).catch(err => console.error("FIRMS Error:", err));
 }
 
-// --- NASA EONET Data Handler ---
+// --- NASA EONET v3 Data Handler ---
+// Docs: https://eonet.gsfc.nasa.gov/docs/v3
+// EONET is a global feed, so we constrain to a US bounding box server-side (bbox param)
+// and then re-verify client-side against CONUS/Alaska/Hawaii boxes, since bbox only
+// filters against each event's overall geometry extent, not a strict point-in-box test.
 function fetchEONETData() {
-    fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&category=wildfires&limit=40')
+    const eonetUrl = 'https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&days=30&limit=100&bbox=-180,72,-65,15';
+
+    fetch(eonetUrl)
         .then(res => res.json())
         .then(data => {
-            if (!data || !data.events) return;
+            const listTarget = $('#eonet-hotspots');
             if (eonetMarkersGroup) eonetMarkersGroup.clearLayers();
+            globalEonetCache = {};
+            eonetMapMarkers = {};
+
+            if (!data || !data.events || data.events.length === 0) {
+                listTarget.html('<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No open US wildfire events in EONET.</span>');
+                return;
+            }
+
+            // Rough US bounding boxes: CONUS, Alaska, Hawaii
+            const usBoxes = [
+                { minLat: 24.4, maxLat: 49.5, minLon: -125.1, maxLon: -66.9 },
+                { minLat: 51.0, maxLat: 71.6, minLon: -179.9, maxLon: -129.9 },
+                { minLat: 18.7, maxLat: 22.5, minLon: -160.5, maxLon: -154.5 }
+            ];
+            const isInUSA = (lat, lon) => usBoxes.some(b => lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon);
 
             const eonetIcon = L.divIcon({
                 html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff6600; font-size:18px; text-shadow:0 0 6px #ff3300; display:block;"></i>',
@@ -306,30 +349,135 @@ function fetchEONETData() {
                 iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10]
             });
 
+            let usEvents = [];
+
             data.events.forEach(evt => {
-                if (evt.geometry && evt.geometry.length > 0) {
-                    const geom = evt.geometry[evt.geometry.length - 1];
-                    if (geom.coordinates && geom.coordinates.length >= 2) {
-                        const lon = geom.coordinates[0];
-                        const lat = geom.coordinates[1];
-                        
-                        if (activeLeafletMap && lat && lon) {
-                            const marker = L.marker([lat, lon], { icon: eonetIcon });
-                            marker.bindPopup(`
-                                <div style="font-family:'Share Tech Mono';">
-                                    <strong style="color:#ff3300; font-size:0.95rem;"><i class="fa-solid fa-globe"></i> NASA EONET INCIDENT</strong><br>
-                                    <hr style="border: 1px solid #30363d; margin: 6px 0;" />
-                                    <strong>Title:</strong> ${evt.title}<br>
-                                    <strong>Report Date:</strong> ${geom.date ? new Date(geom.date).toLocaleDateString() : 'N/A'}<br>
-                                    <strong>Source Agency:</strong> ${evt.sources && evt.sources[0] ? evt.sources[0].id : 'EONET'}
-                                </div>
-                            `);
-                            eonetMarkersGroup.addLayer(marker);
-                        }
-                    }
+                if (!evt.geometry || evt.geometry.length === 0) return;
+                const geom = evt.geometry[evt.geometry.length - 1];
+                let lat = null, lon = null;
+
+                if (geom.type === 'Point' && geom.coordinates && geom.coordinates.length >= 2) {
+                    lon = geom.coordinates[0]; lat = geom.coordinates[1];
+                } else if (geom.type === 'Polygon' && geom.coordinates && geom.coordinates[0] && geom.coordinates[0][0]) {
+                    lon = geom.coordinates[0][0][0]; lat = geom.coordinates[0][0][1];
+                } else if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2 && typeof geom.coordinates[0] === 'number') {
+                    lon = geom.coordinates[0]; lat = geom.coordinates[1];
                 }
+
+                if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
+                if (!isInUSA(lat, lon)) return;
+
+                usEvents.push({ evt, lat, lon, date: geom.date });
             });
-        }).catch(err => console.error("EONET fetch error:", err));
+
+            let html = '';
+            usEvents.forEach((item, idx) => {
+                const { evt, lat, lon, date } = item;
+                const key = evt.id || `eonet-${idx}`;
+                const sourceAgency = evt.sources && evt.sources[0] ? evt.sources[0].id : 'EONET';
+                const sourceUrl = evt.sources && evt.sources[0] ? evt.sources[0].url : (evt.link || '');
+                const dateStr = date ? new Date(date).toLocaleDateString() : 'N/A';
+
+                globalEonetCache[key] = { title: evt.title, date: dateStr, source: sourceAgency, sourceUrl, lat, lon };
+
+                if (activeLeafletMap) {
+                    const marker = L.marker([lat, lon], { icon: eonetIcon });
+                    marker.bindPopup(`
+                        <div style="font-family:'Share Tech Mono';">
+                            <strong style="color:#ff6600; font-size:0.95rem;"><i class="fa-solid fa-globe"></i> NASA EONET INCIDENT</strong><br>
+                            <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                            <strong>Title:</strong> ${evt.title}<br>
+                            <strong>Report Date:</strong> ${dateStr}<br>
+                            <strong>Source Agency:</strong> ${sourceAgency}
+                        </div>
+                    `);
+                    eonetMapMarkers[key] = marker;
+                    if (layerVisibility.eonet) eonetMarkersGroup.addLayer(marker);
+                }
+
+                html += `
+                    <div class="fire-card" style="border-left-color:#ff6600;" onclick="openEonetOnMap('${key}')">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#ff9900; font-weight:bold; font-size:0.8rem;"><i class="fa-solid fa-globe"></i> ${evt.title}</span>
+                        </div>
+                        <div style="color:#8b949e; font-size:0.7rem; margin-top:4px;">
+                            Source: ${sourceAgency} | Reported: ${dateStr}
+                        </div>
+                    </div>`;
+            });
+
+            listTarget.html(html || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No open US wildfire events in EONET.</span>');
+
+        }).catch(err => {
+            console.error("EONET fetch error:", err);
+            $('#eonet-hotspots').html('<span style="color:#ff5555; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> EONET v3 feed unreachable.</span>');
+        });
+}
+
+function openEonetOnMap(key) {
+    const marker = eonetMapMarkers[key];
+    if (!marker || !activeLeafletMap) return;
+    if (!eonetMarkersGroup.hasLayer(marker)) { eonetMarkersGroup.addLayer(marker); layerVisibility.eonet = true; syncToggleButtonState(); }
+    activeLeafletMap.flyTo(marker.getLatLng(), 10, { duration: 1.5 });
+    setTimeout(() => marker.openPopup(), 1500);
+}
+
+// --- NIFC WFIGS Interagency Fire Perimeters (ArcGIS FeatureServer, real polygon geometry) ---
+function fetchWFIGSPerimeters() {
+    const perimeterUrl = `https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query?where=attr_IncidentTypeCategory%3D'WF'&outFields=attr_IncidentName,attr_IncidentSize,attr_PercentContained,attr_POOState,attr_IrwinID&returnGeometry=true&f=geojson`;
+
+    fetch(perimeterUrl)
+        .then(r => r.json())
+        .then(geo => {
+            if (perimetersLayerGroup) perimetersLayerGroup.clearLayers();
+            globalPerimeterCache = {};
+            if (!geo || !geo.features) return;
+
+            geo.features.forEach(feature => {
+                const p = feature.properties || {};
+                if (p.attr_IrwinID) globalPerimeterCache[p.attr_IrwinID] = feature;
+
+                const acres = p.attr_IncidentSize ? Math.round(p.attr_IncidentSize).toLocaleString() : 'N/A';
+                const contained = (p.attr_PercentContained !== null && p.attr_PercentContained !== undefined) ? p.attr_PercentContained + '%' : 'N/A';
+
+                const layer = L.geoJSON(feature, {
+                    style: { color: '#ff3300', weight: 1.5, fillColor: '#ff3300', fillOpacity: 0.18, dashArray: '3,3' }
+                });
+                layer.bindPopup(`
+                    <div style="font-family:'Share Tech Mono';">
+                        <strong style="color:#ff3300; font-size:0.95rem;"><i class="fa-solid fa-draw-polygon"></i> ${p.attr_IncidentName || 'Unnamed Perimeter'}</strong><br>
+                        <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                        <strong>State:</strong> ${p.attr_POOState || 'N/A'}<br>
+                        <strong>Mapped Acreage:</strong> ${acres} acres<br>
+                        <strong>Containment:</strong> ${contained}
+                    </div>
+                `);
+
+                if (layerVisibility.perimeters) perimetersLayerGroup.addLayer(layer);
+            });
+        }).catch(err => console.error("WFIGS perimeter fetch error:", err));
+}
+
+// --- Layer visibility toggles for EONET markers & real fire perimeters ---
+function togglePerimeterOrEonetLayer(which) {
+    if (which === 'eonet') {
+        layerVisibility.eonet = !layerVisibility.eonet;
+        if (!activeLeafletMap || !eonetMarkersGroup) return;
+        eonetMarkersGroup.clearLayers();
+        if (layerVisibility.eonet) Object.values(eonetMapMarkers).forEach(m => eonetMarkersGroup.addLayer(m));
+    } else if (which === 'perimeters') {
+        layerVisibility.perimeters = !layerVisibility.perimeters;
+        if (layerVisibility.perimeters) fetchWFIGSPerimeters();
+        else if (perimetersLayerGroup) perimetersLayerGroup.clearLayers();
+    }
+    syncToggleButtonState();
+}
+
+function syncToggleButtonState() {
+    const eBtn = document.getElementById('toggleEonetBtn');
+    const pBtn = document.getElementById('togglePerimetersBtn');
+    if (eBtn) { eBtn.style.opacity = layerVisibility.eonet ? '1' : '0.4'; }
+    if (pBtn) { pBtn.style.opacity = layerVisibility.perimeters ? '1' : '0.4'; }
 }
 
 function openHotspotOnMap(id) {
@@ -581,21 +729,34 @@ function openWfigsOnMap(key) {
     if (!item || !attr || !activeLeafletMap) return;
     
     if (activePerimeter) { activeLeafletMap.removeLayer(activePerimeter); activePerimeter = null; }
-    
-    const acres = attr.IncidentSize || 0;
-    if (acres > 0) {
-        const radiusMeters = Math.sqrt((acres * 4046.86) / Math.PI);
-        activePerimeter = L.circle([item.lat, item.lon], {
-            color: '#ff3300', fillColor: '#ff3300', fillOpacity: 0.25, weight: 2, dashArray: '4, 4'
+
+    // Prefer the authoritative NIFC mapped perimeter polygon (joined via IrwinID) over an estimate
+    const realPerimeter = attr.IrwinID ? globalPerimeterCache[attr.IrwinID] : null;
+
+    if (realPerimeter) {
+        activePerimeter = L.geoJSON(realPerimeter, {
+            style: { color: '#ff3300', fillColor: '#ff3300', fillOpacity: 0.3, weight: 2 }
         }).addTo(activeLeafletMap);
+    } else {
+        const acres = attr.IncidentSize || 0;
+        if (acres > 0) {
+            const radiusMeters = Math.sqrt((acres * 4046.86) / Math.PI);
+            activePerimeter = L.circle([item.lat, item.lon], {
+                color: '#ff3300', fillColor: '#ff3300', fillOpacity: 0.25, weight: 2, dashArray: '4, 4'
+            }).addTo(activeLeafletMap);
+        }
     }
     
     if (!wfigsMarkersGroup.hasLayer(item.marker)) {
         wfigsMarkersGroup.addLayer(item.marker);
         item.enabled = true;
     }
-    
-    activeLeafletMap.flyTo([item.lat, item.lon], 12, { duration: 1.5 });
+
+    if (realPerimeter && activePerimeter.getBounds && activePerimeter.getBounds().isValid()) {
+        activeLeafletMap.flyToBounds(activePerimeter.getBounds(), { duration: 1.5, padding: [60, 60] });
+    } else {
+        activeLeafletMap.flyTo([item.lat, item.lon], 12, { duration: 1.5 });
+    }
     setTimeout(() => item.marker.openPopup(), 1500);
 }
 
