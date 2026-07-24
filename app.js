@@ -16,7 +16,7 @@ let wfigsMarkersGroup = null;
 let eonetMarkersGroup = null;
 let activePerimeter = null;
 
-let initialMapFit = false; // Tracks if map bounds have been set to fit all incidents
+let initialMapFit = false;
 
 let alertSoundEnabled = false;
 let previousAlertCount = 0;
@@ -140,7 +140,6 @@ layout.registerComponent('fireAnalytics', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="display:flex; flex-direction:column; gap:10px;">
             
-            <!-- NEW METRICS CONTROL BAR -->
             <div style="background:rgba(13, 17, 23, 0.88); border:1px solid #ff6600; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
                 <div style="display:flex; align-items:center; gap:6px; color:#ff9900; font-weight:bold; font-size:0.75rem;">
                     <i class="fa-solid fa-chart-pie" style="color:#ff3300; font-size:0.9rem;"></i> 
@@ -151,7 +150,6 @@ layout.registerComponent('fireAnalytics', function(container) {
                 </select>
             </div>
 
-            <!-- Clickable Stat Summary Cards -->
             <div id="fire-summary-stats" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
                 <div class="stat-card" onclick="openMetricsDetailModal('count')" title="Click for Detailed Incident List">
                     <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">TRACKED FIRES <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
@@ -220,7 +218,7 @@ function fetchAllData() {
     fetchAirQualityData();
 }
 
-// --- NASA FIRMS API (Satellite Fire Hotspots with Red Flame Markers) ---
+// --- NASA FIRMS API ---
 function fetchFIRMSData() {
     const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/-125,24,-66,50/1`;
 
@@ -252,9 +250,11 @@ function fetchFIRMSData() {
             if (firmsMarkersGroup) firmsMarkersGroup.clearLayers();
             firmsMapMarkers = {};
 
+            // Explicitly styled DivIcon for satellite hotspots
             const redFlameIcon = L.divIcon({
-                html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'fire-icon-red',
-                iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -12]
+                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:15px; text-shadow:0 0 4px #ff0000; display:block;"></i>',
+                className: 'fire-icon-red',
+                iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10]
             });
 
             hotspots.slice(0, 300).forEach(h => {
@@ -301,8 +301,9 @@ function fetchEONETData() {
             if (eonetMarkersGroup) eonetMarkersGroup.clearLayers();
 
             const eonetIcon = L.divIcon({
-                html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'fire-icon-red',
-                iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -12]
+                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff6600; font-size:18px; text-shadow:0 0 6px #ff3300; display:block;"></i>',
+                className: 'fire-icon-red',
+                iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10]
             });
 
             data.events.forEach(evt => {
@@ -347,26 +348,26 @@ function fetchWFIGSData() {
         .then(r => r.json())
         .then(wfigsData => {
             const feats = (wfigsData && wfigsData.features) ? wfigsData.features : [];
-            // Retrieve ALL valid incidents, removing the previous 150 item limit cap
             const incidents = feats
                 .map(f => ({ attributes: f.attributes, geometry: f.geometry }))
                 .filter(item => item.attributes.IncidentSize > 0)
                 .sort((a, b) => (b.attributes.IncidentSize || 0) - (a.attributes.IncidentSize || 0));
 
             globalWildfireCache = {};
+            globalWildfireMapCache = {};
             if (wfigsMarkersGroup) wfigsMarkersGroup.clearLayers();
             
             const currentStateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'ALL';
-            
-            let listHtml = ''; 
-            
+
+            // Explicitly styled DivIcon ensures glowing red fire icons show up reliably for all incidents
             const wfigsRedIcon = L.divIcon({
-                html: '<i class="fa-solid fa-fire-flame-curved"></i>', className: 'wfigs-icon-red',
-                iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12]
+                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:18px; text-shadow:0 0 6px rgba(255,51,0,0.9); display:block;"></i>',
+                className: 'wfigs-icon-red',
+                iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10]
             });
 
             let statesSet = new Set();
-            let bounds = []; // Array to store all coordinates for auto-fitting
+            let bounds = [];
 
             incidents.forEach((item, idx) => {
                 const attr = item.attributes;
@@ -404,20 +405,9 @@ function fetchWFIGSData() {
                         bounds.push([lat, lon]);
                     }
                 }
-
-                listHtml += `
-                    <div class="fire-card wfigs-card" style="border-left-color: #ff3300;" onclick="openWfigsOnMap('${fireKey}')" title="Click to navigate to map position and view perimeter">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#ff9900; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> ${name.toUpperCase()} (${state})</span>
-                            <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
-                        </div>
-                        <div style="color:#8b949e; font-size:0.7rem; margin-top:3px;">
-                            County: ${county || 'N/A'} | Size: <strong style="color:#ff6600;">${size} acres</strong>
-                        </div>
-                    </div>`;
             });
 
-            // Populate Map Dropdown
+            // Populate Map Dropdown Options
             const selectElMap = document.getElementById('stateFilter');
             const sortedStates = Array.from(statesSet).sort();
             if (selectElMap) {
@@ -435,7 +425,8 @@ function fetchWFIGSData() {
                 selectElMetrics.innerHTML = optionsHtmlMetrics;
             }
 
-            $('#wildfire-list-target').html(listHtml || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE WFIGS INCIDENTS DETECTED</span>');
+            // Render Incident List Pane synchronized with Map Filter
+            renderWFIGSList(currentStateFilter);
             
             // Auto-Fit all active markers to map bounds on initial load
             if (!initialMapFit && bounds.length > 0 && activeLeafletMap) {
@@ -443,7 +434,6 @@ function fetchWFIGSData() {
                 initialMapFit = true;
             }
 
-            // Route default/current calculations through the dynamic update function
             const activeMetricsFilter = selectElMetrics ? selectElMetrics.value : 'ALL';
             updateMetricsDisplay(activeMetricsFilter);
 
@@ -451,6 +441,106 @@ function fetchWFIGSData() {
             console.error("WFIGS feed error:", err);
             $('#wildfire-list-target').html('<span style="color:#ff5555; font-size:0.8rem;">INCIDENT WFIGS FEED TIMEOUT</span>');
         });
+}
+
+// --- Render Synchronized WFIGS Active Incident List ---
+function renderWFIGSList(stateFilter = 'ALL') {
+    const target = $('#wildfire-list-target');
+    if (!target.length) return;
+
+    let incidents = Object.keys(globalWildfireCache).map(key => ({
+        key: key,
+        attr: globalWildfireCache[key]
+    }));
+
+    // Filter list pane by selected state
+    if (stateFilter !== 'ALL') {
+        incidents = incidents.filter(item => (item.attr.POOState || 'US') === stateFilter);
+    }
+
+    // Sort by acreage footprint descending
+    incidents.sort((a, b) => (b.attr.IncidentSize || 0) - (a.attr.IncidentSize || 0));
+
+    if (incidents.length === 0) {
+        target.html(`<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE INCIDENTS REPORTED FOR ${stateFilter}</span>`);
+        return;
+    }
+
+    let listHtml = '';
+    incidents.forEach(item => {
+        const attr = item.attr;
+        const fireKey = item.key;
+        const name = attr.IncidentName || attr.ComplexName || 'Unnamed Incident';
+        const size = attr.IncidentSize ? Math.round(attr.IncidentSize).toLocaleString() : 'Unknown';
+        const contained = attr.PercentContained !== null && attr.PercentContained !== undefined ? attr.PercentContained + '%' : 'N/A';
+        const state = attr.POOState || 'US';
+        const county = attr.POOCounty || '';
+
+        listHtml += `
+            <div class="fire-card wfigs-card" style="border-left-color: #ff3300;" onclick="openWfigsOnMap('${fireKey}')" title="Click to navigate to map position and view perimeter">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#ff9900; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> ${name.toUpperCase()} (${state})</span>
+                    <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
+                </div>
+                <div style="color:#8b949e; font-size:0.7rem; margin-top:3px;">
+                    County: ${county || 'N/A'} | Size: <strong style="color:#ff6600;">${size} acres</strong>
+                </div>
+            </div>`;
+    });
+
+    target.html(listHtml);
+}
+
+// --- Dynamic Map Controls & Filtering Logic ---
+function applyStateFilter() {
+    const state = document.getElementById('stateFilter').value;
+    let bounds = [];
+    wfigsMarkersGroup.clearLayers();
+    
+    // 1. Display state incidents on map
+    Object.values(globalWildfireMapCache).forEach(item => {
+        if (state === 'ALL' || item.state === state) {
+            item.enabled = true;
+            wfigsMarkersGroup.addLayer(item.marker);
+            bounds.push([item.lat, item.lon]);
+        } else {
+            item.enabled = false;
+        }
+    });
+    
+    // 2. Zoom & pan map to fit state incidents
+    if (bounds.length > 0 && activeLeafletMap) {
+        activeLeafletMap.fitBounds(L.latLngBounds(bounds), {padding: [50, 50]});
+    }
+
+    // 3. Synchronize active incident list pane below map to show only selected state
+    renderWFIGSList(state);
+}
+
+function toggleAllWfigs(show) {
+    document.getElementById('stateFilter').value = 'ALL';
+    wfigsMarkersGroup.clearLayers();
+    let bounds = [];
+    
+    Object.values(globalWildfireMapCache).forEach(item => {
+        item.enabled = show;
+        if (show) {
+            wfigsMarkersGroup.addLayer(item.marker);
+            bounds.push([item.lat, item.lon]);
+        }
+    });
+    
+    if (show && bounds.length > 0 && activeLeafletMap) {
+        activeLeafletMap.fitBounds(L.latLngBounds(bounds), {padding: [50, 50]});
+    }
+
+    renderWFIGSList('ALL');
+}
+
+function resetMapBounds() {
+    document.getElementById('stateFilter').value = 'ALL';
+    applyStateFilter();
+    if (activeLeafletMap) activeLeafletMap.setView([39.8283, -98.5795], 4);
 }
 
 // --- Dynamic Metrics Panel Handlers ---
@@ -479,7 +569,6 @@ function updateMetricsDisplay(stateFilter) {
     $('#stat-acres').text(Math.round(totalAcres).toLocaleString());
     $('#stat-contained').text(containedCount > 0 ? Math.round(containedSum / containedCount) + '%' : 'N/A');
 
-    // Slice top 8 from the filtered pool and format back for the chart function
     let topForChart = [...filteredItems].sort((a,b) => (b.IncidentSize || 0) - (a.IncidentSize || 0)).slice(0, 8);
     let formattedForChart = topForChart.map(attr => ({ attributes: attr }));
     
@@ -510,7 +599,7 @@ function openWfigsOnMap(key) {
     setTimeout(() => item.marker.openPopup(), 1500);
 }
 
-// --- Interactive Detailed Modal for Clickable Metrics (Filter Aware) ---
+// --- Interactive Detailed Modal for Clickable Metrics ---
 function openMetricsDetailModal(type) {
     const currentStateFilter = document.getElementById('metricsStateFilter') ? document.getElementById('metricsStateFilter').value : 'ALL';
     const keys = Object.keys(globalWildfireCache);
@@ -628,49 +717,6 @@ function openMetricsDetailModal(type) {
     }
 
     openFloatingModal(title, html);
-}
-
-// --- Map Control Logic ---
-function applyStateFilter() {
-    const state = document.getElementById('stateFilter').value;
-    let bounds = [];
-    wfigsMarkersGroup.clearLayers();
-    
-    Object.values(globalWildfireMapCache).forEach(item => {
-        if (state === 'ALL' || item.state === state) {
-            item.enabled = true;
-            wfigsMarkersGroup.addLayer(item.marker);
-            bounds.push([item.lat, item.lon]);
-        } else {
-            item.enabled = false;
-        }
-    });
-    
-    if (bounds.length > 0 && activeLeafletMap) {
-        activeLeafletMap.fitBounds(L.latLngBounds(bounds), {padding: [50, 50]});
-    }
-}
-
-function toggleAllWfigs(show) {
-    document.getElementById('stateFilter').value = 'ALL';
-    wfigsMarkersGroup.clearLayers();
-    let bounds = [];
-    
-    Object.values(globalWildfireMapCache).forEach(item => {
-        item.enabled = show;
-        if (show) {
-            wfigsMarkersGroup.addLayer(item.marker);
-            bounds.push([item.lat, item.lon]);
-        }
-    });
-    
-    if (show && bounds.length > 0 && activeLeafletMap) {
-        activeLeafletMap.fitBounds(L.latLngBounds(bounds), {padding: [50, 50]});
-    }
-}
-
-function resetMapBounds() {
-    if (activeLeafletMap) activeLeafletMap.setView([39.8283, -98.5795], 4);
 }
 
 function renderWildfireChart(topIncidents) {
