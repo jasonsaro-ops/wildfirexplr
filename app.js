@@ -53,20 +53,21 @@ function playAlertSound() {
 // --- Golden Layout Grid Configuration ---
 const config = {
     settings: { hasHeaders: true, reorderEnabled: true, showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: false },
+    dimensions: { borderWidth: 1, headerHeight: 32 },
     content: [{
         type: 'row',
         content: [
             {
                 type: 'column',
-                width: 44,
+                width: 60,
                 content: [
-                    { type: 'component', componentName: 'wildfireMap', title: 'MULTI-AGENCY ACTIVE FIRE MAP' },
-                    { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS)' }
+                    { type: 'component', componentName: 'wildfireMap', title: 'MULTI-AGENCY ACTIVE FIRE MAP', height: 72 },
+                    { type: 'component', componentName: 'activeIncidentList', title: 'AUTHORITATIVE ACTIVE WILDFIRES (NIFC WFIGS)', height: 28 }
                 ]
             },
             {
                 type: 'column',
-                width: 28,
+                width: 20,
                 content: [
                     { type: 'component', componentName: 'nwsAlerts', title: 'NWS RED FLAG / WEATHER WARNINGS' },
                     { type: 'component', componentName: 'fireAnalytics', title: 'NATIONAL ACREAGE & CONTAINMENT METRICS' }
@@ -74,7 +75,7 @@ const config = {
             },
             {
                 type: 'column',
-                width: 28,
+                width: 20,
                 content: [
                     { type: 'component', componentName: 'satelliteHotspots', title: 'NASA FIRMS & EONET THERMAL HOTSPOTS' },
                     { type: 'component', componentName: 'airQualityPanel', title: 'AIRNOW SATELLITE & SMOKE AQI METRICS' }
@@ -89,28 +90,28 @@ const layout = new GoldenLayout(config, '#desktopLayoutContainer');
 // --- Component Registrations ---
 layout.registerComponent('wildfireMap', function(container) {
     container.getElement().html(`
-        <div style="position:relative; width:100%; height:100%; background:#0d1117;">
-            <div id="mapControls" style="position:absolute; top:8px; left:8px; right:8px; z-index:1000; background:rgba(13, 17, 23, 0.88); backdrop-filter:blur(6px); border:1px solid #ff6600; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
-                <div style="display:flex; align-items:center; gap:6px; color:#ff9900; font-weight:bold; font-size:0.75rem;">
+        <div style="position:relative; width:100%; height:100%; background:#0a0e14;">
+            <div id="mapControls" style="position:absolute; top:10px; left:10px; right:10px; z-index:1000; background:rgba(10, 14, 20, 0.82); backdrop-filter:blur(10px); border:1px solid rgba(255,122,26,0.4); padding:8px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;">
+                <div style="display:flex; align-items:center; gap:7px; color:#ffb347; font-weight:600; font-size:0.72rem; font-family:'Rajdhani',sans-serif; letter-spacing:0.6px; text-transform:uppercase;">
                     <i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.9rem;"></i> 
-                    <span>WFIGS CONTROLS:</span>
+                    <span>WFIGS Controls</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                    <select id="stateFilter" style="background:#161b22; color:#00ffcc; border:1px solid #30363d; padding:4px 8px; font-family:'Share Tech Mono', monospace; font-size:0.72rem; border-radius:3px; cursor:pointer;" onchange="applyStateFilter()">
+                    <select id="stateFilter" style="background:#10151d; color:#2de3c4; border:1px solid #2a323e; padding:4px 8px; font-family:'Share Tech Mono', monospace; font-size:0.72rem; border-radius:3px; cursor:pointer;" onchange="applyStateFilter()">
                         <option value="ALL">ALL STATES</option>
                     </select>
-                    <button class="btn-control" style="color:#00ff55; font-size:0.72rem;" onclick="toggleAllWfigs(true)"><i class="fa-solid fa-eye"></i> ENABLE ALL</button>
+                    <button class="btn-control" style="color:#35e08a; font-size:0.72rem;" onclick="toggleAllWfigs(true)"><i class="fa-solid fa-eye"></i> ENABLE ALL</button>
                     <button class="btn-control" style="color:#ff5555; font-size:0.72rem;" onclick="toggleAllWfigs(false)"><i class="fa-solid fa-eye-slash"></i> DISABLE ALL</button>
-                    <button class="btn-control" style="color:#00ffcc; font-size:0.72rem;" onclick="resetMapBounds()"><i class="fa-solid fa-compress"></i> RESET USA</button>
-                    <button id="toggleEonetBtn" class="btn-control" style="color:#ff6600; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('eonet')"><i class="fa-solid fa-globe"></i> EONET</button>
-                    <button id="togglePerimetersBtn" class="btn-control" style="color:#ff9900; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('perimeters')"><i class="fa-solid fa-draw-polygon"></i> PERIMETERS</button>
+                    <button class="btn-control" style="color:#2de3c4; font-size:0.72rem;" onclick="resetMapBounds()"><i class="fa-solid fa-compress"></i> RESET USA</button>
+                    <button id="toggleEonetBtn" class="btn-control" style="color:#ff7a1a; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('eonet')"><i class="fa-solid fa-globe"></i> EONET</button>
+                    <button id="togglePerimetersBtn" class="btn-control" style="color:#ffb347; font-size:0.72rem;" onclick="togglePerimeterOrEonetLayer('perimeters')"><i class="fa-solid fa-draw-polygon"></i> PERIMETERS</button>
                 </div>
             </div>
 
-            <div id="mapLegend" style="position:absolute; bottom:24px; left:8px; z-index:1000; background:rgba(13, 17, 23, 0.88); backdrop-filter:blur(6px); border:1px solid #30363d; padding:6px 10px; border-radius:4px; font-size:0.65rem; color:#8b949e; display:flex; flex-direction:column; gap:3px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+            <div id="mapLegend" style="position:absolute; bottom:26px; left:10px; z-index:1000; background:rgba(10, 14, 20, 0.82); backdrop-filter:blur(10px); border:1px solid rgba(148,163,184,0.16); padding:9px 13px; border-radius:8px; font-size:0.66rem; font-family:'Rajdhani',sans-serif; color:#9aa7b8; display:flex; flex-direction:column; gap:5px; box-shadow: 0 8px 24px rgba(0,0,0,0.55);">
                 <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> NIFC WFIGS Incident</div>
-                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff6600;"></i> NASA EONET Incident</div>
-                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.85em;"></i> NASA FIRMS Hotspot</div>
+                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff7a1a;"></i> NASA EONET Incident</div>
+                <div><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:0.85em;"></i> NASA FIRMS Hotspot (VIIRS · Suomi NPP + NOAA-20)</div>
                 <div><span style="display:inline-block; width:10px; height:10px; background:rgba(255,51,0,0.35); border:1px solid #ff3300; border-radius:2px;"></span> Fire Perimeter (NIFC)</div>
             </div>
             
@@ -142,9 +143,9 @@ layout.registerComponent('activeIncidentList', function(container) {
 layout.registerComponent('nwsAlerts', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="position:relative;">
-            <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #30363d; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:0.85rem; color:#ffcc00; font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> NWS RED FLAG / WEATHER WARNINGS</div>
-                <button id="soundToggleBtn" onclick="toggleAlertSound()" class="btn-control" style="color:#8b949e; padding:2px 6px;" title="Toggle alert audio">
+            <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #2a323e; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.8rem; color:#ffcc33; font-weight:700; font-family:'Rajdhani',sans-serif; letter-spacing:0.6px; text-transform:uppercase;"><i class="fa-solid fa-triangle-exclamation"></i> NWS Red Flag / Weather Warnings</div>
+                <button id="soundToggleBtn" onclick="toggleAlertSound()" class="btn-control" style="color:#9aa7b8; padding:2px 6px;" title="Toggle alert audio">
                     <i class="fa-solid fa-volume-mute"></i>
                 </button>
             </div>
@@ -157,31 +158,31 @@ layout.registerComponent('fireAnalytics', function(container) {
     container.getElement().html(`
         <div class="weather-component" style="display:flex; flex-direction:column; gap:10px;">
             
-            <div style="background:rgba(13, 17, 23, 0.88); border:1px solid #ff6600; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
-                <div style="display:flex; align-items:center; gap:6px; color:#ff9900; font-weight:bold; font-size:0.75rem;">
+            <div style="background:rgba(13, 17, 23, 0.88); border:1px solid #ff7a1a; padding:6px 12px; border-radius:4px; display:flex; align-items:center; justify-content:space-between; gap:6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                <div style="display:flex; align-items:center; gap:6px; color:#ffb347; font-weight:bold; font-size:0.75rem;">
                     <i class="fa-solid fa-chart-pie" style="color:#ff3300; font-size:0.9rem;"></i> 
                     <span>METRICS FILTER:</span>
                 </div>
-                <select id="metricsStateFilter" style="background:#161b22; color:#00ffcc; border:1px solid #30363d; padding:4px 8px; font-family:'Share Tech Mono', monospace; font-size:0.72rem; border-radius:3px; cursor:pointer;" onchange="applyMetricsFilter()">
+                <select id="metricsStateFilter" style="background:#10151d; color:#2de3c4; border:1px solid #2a323e; padding:4px 8px; font-family:'Share Tech Mono', monospace; font-size:0.72rem; border-radius:3px; cursor:pointer;" onchange="applyMetricsFilter()">
                     <option value="ALL">ALL STATES</option>
                 </select>
             </div>
 
             <div id="fire-summary-stats" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
                 <div class="stat-card" onclick="openMetricsDetailModal('count')" title="Click for Detailed Incident List">
-                    <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">TRACKED FIRES <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
-                    <div id="stat-count" style="font-size:1.15rem; color:#00ffcc; font-weight:bold; margin-top:2px;">--</div>
+                    <div style="font-size:0.58rem; color:#9aa7b8; font-weight:bold;">TRACKED FIRES <i class="fa-solid fa-circle-info" style="color:#ffb347;"></i></div>
+                    <div id="stat-count" style="font-size:1.15rem; color:#2de3c4; font-weight:bold; margin-top:2px;">--</div>
                 </div>
                 <div class="stat-card" onclick="openMetricsDetailModal('acres')" title="Click for Acreage Breakdown by State">
-                    <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">ACREAGE BURNED <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
-                    <div id="stat-acres" style="font-size:1.15rem; color:#ff6600; font-weight:bold; margin-top:2px;">--</div>
+                    <div style="font-size:0.58rem; color:#9aa7b8; font-weight:bold;">ACREAGE BURNED <i class="fa-solid fa-circle-info" style="color:#ffb347;"></i></div>
+                    <div id="stat-acres" style="font-size:1.15rem; color:#ff7a1a; font-weight:bold; margin-top:2px;">--</div>
                 </div>
                 <div class="stat-card" onclick="openMetricsDetailModal('contained')" title="Click for Containment Distribution">
-                    <div style="font-size:0.58rem; color:#8b949e; font-weight:bold;">AVG CONTAINED <i class="fa-solid fa-circle-info" style="color:#ff9900;"></i></div>
-                    <div id="stat-contained" style="font-size:1.15rem; color:#00ff55; font-weight:bold; margin-top:2px;">--</div>
+                    <div style="font-size:0.58rem; color:#9aa7b8; font-weight:bold;">AVG CONTAINED <i class="fa-solid fa-circle-info" style="color:#ffb347;"></i></div>
+                    <div id="stat-contained" style="font-size:1.15rem; color:#35e08a; font-weight:bold; margin-top:2px;">--</div>
                 </div>
             </div>
-            <div style="min-height:180px; position:relative; background:#161b22; border: 1px solid #30363d; border-radius:4px; padding:10px;">
+            <div style="min-height:180px; position:relative; background:#10151d; border: 1px solid #2a323e; border-radius:4px; padding:10px;">
                 <canvas id="wildfireChart"></canvas>
             </div>
         </div>
@@ -192,13 +193,13 @@ layout.registerComponent('fireAnalytics', function(container) {
 layout.registerComponent('satelliteHotspots', function(container) {
     container.getElement().html(`
         <div class="weather-component">
-            <div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NASA FIRMS THERMAL HOTSPOTS</div>
+            <div style="font-size:0.72rem; color:#ffcc33; font-weight:700; font-family:'Rajdhani',sans-serif; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px;"><i class="fa-solid fa-satellite"></i> NASA FIRMS Thermal Hotspots (Dual-Satellite VIIRS)</div>
             <div id="firms-hotspots" style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
-                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA FIRMS satellite feed...</span>
+                <span style="color:#9aa7b8; font-size:0.8rem;">Contacting NASA FIRMS satellite feeds...</span>
             </div>
-            <div style="font-size:0.75rem; color:#ff9900; font-weight:bold; margin-bottom:8px; padding-top:8px; border-top:1px solid #30363d;"><i class="fa-solid fa-globe"></i> NASA EONET US WILDFIRE EVENTS</div>
+            <div style="font-size:0.72rem; color:#ffb347; font-weight:700; font-family:'Rajdhani',sans-serif; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px; padding-top:8px; border-top:1px solid #2a323e;"><i class="fa-solid fa-globe"></i> NASA EONET US Wildfire Events</div>
             <div id="eonet-hotspots" style="display:flex; flex-direction:column; gap:6px;">
-                <span style="color:#8b949e; font-size:0.8rem;">Contacting NASA EONET v3 feed...</span>
+                <span style="color:#9aa7b8; font-size:0.8rem;">Contacting NASA EONET v3 feed...</span>
             </div>
         </div>
     `);
@@ -221,11 +222,11 @@ function toggleAlertSound() {
     const btn = document.getElementById('soundToggleBtn');
     if (btn) {
         if (alertSoundEnabled) {
-            btn.style.borderColor = '#00ff55'; btn.style.color = '#00ff55';
+            btn.style.borderColor = '#35e08a'; btn.style.color = '#35e08a';
             btn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
             playAlertSound();
         } else {
-            btn.style.borderColor = '#30363d'; btn.style.color = '#8b949e';
+            btn.style.borderColor = '#2a323e'; btn.style.color = '#9aa7b8';
             btn.innerHTML = '<i class="fa-solid fa-volume-mute"></i>';
         }
     }
@@ -240,78 +241,93 @@ function fetchAllData() {
     fetchAirQualityData();
 }
 
-// --- NASA FIRMS API ---
+// --- NASA FIRMS API (Dual-Satellite: Suomi NPP + NOAA-20 VIIRS) ---
+const FIRMS_SATELLITES = [
+    { dataset: 'VIIRS_SNPP_NRT', label: 'Suomi NPP', tag: 'SNPP' },
+    { dataset: 'VIIRS_NOAA20_NRT', label: 'NOAA-20', tag: 'NOAA20' }
+];
+
+function parseFirmsCsv(csvText, satTag, satLabel) {
+    if (!csvText || csvText.startsWith('Error') || csvText.trim().split('\n').length < 2) return [];
+    const lines = csvText.trim().split('\n');
+    const headers = lines[0].split(',');
+    const latIdx = headers.indexOf('latitude'); const lonIdx = headers.indexOf('longitude');
+    const dateIdx = headers.indexOf('acq_date'); const timeIdx = headers.indexOf('acq_time');
+    const confIdx = headers.indexOf('confidence'); const frpIdx = headers.indexOf('frp');
+
+    return lines.slice(1).map((line, idx) => {
+        const cols = line.split(',');
+        return {
+            id: `firms-${satTag}-${idx}`, lat: parseFloat(cols[latIdx]), lon: parseFloat(cols[lonIdx]),
+            date: cols[dateIdx], time: cols[timeIdx], confidence: cols[confIdx] || 'N/A',
+            frp: parseFloat(cols[frpIdx]) || 0, satellite: satLabel
+        };
+    }).filter(h => !isNaN(h.lat));
+}
+
 function fetchFIRMSData() {
-    const firmsUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/-125,24,-66,50/1`;
+    const container = $('#firms-hotspots');
 
-    fetch(firmsUrl)
-        .then(res => res.text())
-        .then(csvText => {
-            const container = $('#firms-hotspots');
-            if (!csvText || csvText.startsWith('Error') || csvText.trim().split('\n').length < 2) {
-                container.html('<span style="color:#ff5555; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> FIRMS satellite feed unavailable or empty.</span>');
-                return;
-            }
+    const requests = FIRMS_SATELLITES.map(sat => {
+        const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/${sat.dataset}/-125,24,-66,50/1`;
+        return fetch(url).then(res => res.text()).then(csvText => parseFirmsCsv(csvText, sat.tag, sat.label)).catch(() => []);
+    });
 
-            const lines = csvText.trim().split('\n');
-            const headers = lines[0].split(',');
-            const latIdx = headers.indexOf('latitude'); const lonIdx = headers.indexOf('longitude');
-            const dateIdx = headers.indexOf('acq_date'); const timeIdx = headers.indexOf('acq_time');
-            const confIdx = headers.indexOf('confidence'); const frpIdx = headers.indexOf('frp');
+    Promise.all(requests).then(resultSets => {
+        let hotspots = [].concat(...resultSets);
 
-            let hotspots = lines.slice(1).map((line, idx) => {
-                const cols = line.split(',');
-                return {
-                    id: `firms-${idx}`, lat: parseFloat(cols[latIdx]), lon: parseFloat(cols[lonIdx]),
-                    date: cols[dateIdx], time: cols[timeIdx], confidence: cols[confIdx] || 'N/A',
-                    frp: parseFloat(cols[frpIdx]) || 0
-                };
-            }).filter(h => !isNaN(h.lat));
-
-            hotspots.sort((a, b) => b.frp - a.frp);
+        if (hotspots.length === 0) {
+            container.html('<span style="color:#ff5555; font-size:0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> FIRMS satellite feeds unavailable or empty.</span>');
             if (firmsMarkersGroup) firmsMarkersGroup.clearLayers();
             firmsMapMarkers = {};
+            return;
+        }
 
-            // Explicitly styled DivIcon for satellite hotspots
-            const redFlameIcon = L.divIcon({
-                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:15px; text-shadow:0 0 4px #ff0000; display:block;"></i>',
-                className: 'fire-icon-red',
-                iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10]
-            });
+        hotspots.sort((a, b) => b.frp - a.frp);
+        if (firmsMarkersGroup) firmsMarkersGroup.clearLayers();
+        firmsMapMarkers = {};
 
-            hotspots.slice(0, 300).forEach(h => {
-                if (activeLeafletMap) {
-                    const marker = L.marker([h.lat, h.lon], {icon: redFlameIcon});
-                    marker.bindPopup(`
-                        <div style="font-family:'Share Tech Mono';">
-                            <strong style="color:#ff3300; font-size:1rem;"><i class="fa-solid fa-fire-flame-curved"></i> FIRMS HOTSPOT</strong><br>
-                            <hr style="border: 1px solid #30363d; margin: 6px 0;" />
-                            <strong>Lat/Lon:</strong> ${h.lat.toFixed(4)}, ${h.lon.toFixed(4)}<br>
-                            <strong>Radiative Power:</strong> <span style="color:#ff9900; font-weight:bold;">${h.frp} MW</span><br>
-                            <strong>Confidence:</strong> ${h.confidence}<br>
-                            <strong>Acquired:</strong> ${h.date} @ ${h.time}Z
-                        </div>
-                    `);
-                    firmsMapMarkers[h.id] = marker;
-                    firmsMarkersGroup.addLayer(marker);
-                }
-            });
+        // Explicitly styled DivIcon for satellite hotspots
+        const redFlameIcon = L.divIcon({
+            html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff3300; font-size:15px; text-shadow:0 0 4px #ff0000; display:block;"></i>',
+            className: 'fire-icon-red',
+            iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10]
+        });
 
-            let html = '';
-            hotspots.slice(0, 80).forEach(h => {
-                html += `
-                    <div class="fire-card" onclick="openHotspotOnMap('${h.id}')">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#ff3300; font-weight:bold; font-size:0.82rem;"><i class="fa-solid fa-fire-flame-curved"></i> FIRMS HOTSPOT ${h.id.split('-')[1]}</span>
-                            <span style="color:#ff9900; font-size:0.75rem; font-weight:bold;">${h.frp} MW</span>
-                        </div>
-                        <div style="color:#8b949e; font-size:0.7rem; margin-top:4px;">
-                            Loc: ${h.lat.toFixed(3)}, ${h.lon.toFixed(3)} | Conf: ${h.confidence}
-                        </div>
-                    </div>`;
-            });
-            container.html(html || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No active satellite hotspots.</span>');
-        }).catch(err => console.error("FIRMS Error:", err));
+        hotspots.slice(0, 400).forEach(h => {
+            if (activeLeafletMap) {
+                const marker = L.marker([h.lat, h.lon], {icon: redFlameIcon});
+                marker.bindPopup(`
+                    <div style="font-family:'Share Tech Mono';">
+                        <strong style="color:#ff3300; font-size:1rem;"><i class="fa-solid fa-fire-flame-curved"></i> FIRMS HOTSPOT</strong><br>
+                        <hr style="border: 1px solid #2a323e; margin: 6px 0;" />
+                        <strong>Satellite:</strong> <span style="color:#2de3c4;">${h.satellite} (VIIRS)</span><br>
+                        <strong>Lat/Lon:</strong> ${h.lat.toFixed(4)}, ${h.lon.toFixed(4)}<br>
+                        <strong>Radiative Power:</strong> <span style="color:#ffb347; font-weight:bold;">${h.frp} MW</span><br>
+                        <strong>Confidence:</strong> ${h.confidence}<br>
+                        <strong>Acquired:</strong> ${h.date} @ ${h.time}Z
+                    </div>
+                `);
+                firmsMapMarkers[h.id] = marker;
+                firmsMarkersGroup.addLayer(marker);
+            }
+        });
+
+        let html = '';
+        hotspots.slice(0, 80).forEach(h => {
+            html += `
+                <div class="fire-card" onclick="openHotspotOnMap('${h.id}')">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:#ff3300; font-weight:bold; font-size:0.82rem;"><i class="fa-solid fa-fire-flame-curved"></i> FIRMS HOTSPOT</span>
+                        <span style="color:#ffb347; font-size:0.75rem; font-weight:bold;">${h.frp} MW</span>
+                    </div>
+                    <div style="color:#9aa7b8; font-size:0.7rem; margin-top:4px;">
+                        Loc: ${h.lat.toFixed(3)}, ${h.lon.toFixed(3)} | Conf: ${h.confidence} | Sat: <span style="color:#2de3c4;">${h.satellite}</span>
+                    </div>
+                </div>`;
+        });
+        container.html(html || '<span style="color:#35e08a; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No active satellite hotspots.</span>');
+    });
 }
 
 // --- NASA EONET v3 Data Handler ---
@@ -331,7 +347,7 @@ function fetchEONETData() {
             eonetMapMarkers = {};
 
             if (!data || !data.events || data.events.length === 0) {
-                listTarget.html('<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No open US wildfire events in EONET.</span>');
+                listTarget.html('<span style="color:#35e08a; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No open US wildfire events in EONET.</span>');
                 return;
             }
 
@@ -344,7 +360,7 @@ function fetchEONETData() {
             const isInUSA = (lat, lon) => usBoxes.some(b => lat >= b.minLat && lat <= b.maxLat && lon >= b.minLon && lon <= b.maxLon);
 
             const eonetIcon = L.divIcon({
-                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff6600; font-size:18px; text-shadow:0 0 6px #ff3300; display:block;"></i>',
+                html: '<i class="fa-solid fa-fire-flame-curved" style="color:#ff7a1a; font-size:18px; text-shadow:0 0 6px #ff3300; display:block;"></i>',
                 className: 'fire-icon-red',
                 iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -10]
             });
@@ -384,8 +400,8 @@ function fetchEONETData() {
                     const marker = L.marker([lat, lon], { icon: eonetIcon });
                     marker.bindPopup(`
                         <div style="font-family:'Share Tech Mono';">
-                            <strong style="color:#ff6600; font-size:0.95rem;"><i class="fa-solid fa-globe"></i> NASA EONET INCIDENT</strong><br>
-                            <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                            <strong style="color:#ff7a1a; font-size:0.95rem;"><i class="fa-solid fa-globe"></i> NASA EONET INCIDENT</strong><br>
+                            <hr style="border: 1px solid #2a323e; margin: 6px 0;" />
                             <strong>Title:</strong> ${evt.title}<br>
                             <strong>Report Date:</strong> ${dateStr}<br>
                             <strong>Source Agency:</strong> ${sourceAgency}
@@ -396,17 +412,17 @@ function fetchEONETData() {
                 }
 
                 html += `
-                    <div class="fire-card" style="border-left-color:#ff6600;" onclick="openEonetOnMap('${key}')">
+                    <div class="fire-card" style="border-left-color:#ff7a1a;" onclick="openEonetOnMap('${key}')">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#ff9900; font-weight:bold; font-size:0.8rem;"><i class="fa-solid fa-globe"></i> ${evt.title}</span>
+                            <span style="color:#ffb347; font-weight:bold; font-size:0.8rem;"><i class="fa-solid fa-globe"></i> ${evt.title}</span>
                         </div>
-                        <div style="color:#8b949e; font-size:0.7rem; margin-top:4px;">
+                        <div style="color:#9aa7b8; font-size:0.7rem; margin-top:4px;">
                             Source: ${sourceAgency} | Reported: ${dateStr}
                         </div>
                     </div>`;
             });
 
-            listTarget.html(html || '<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No open US wildfire events in EONET.</span>');
+            listTarget.html(html || '<span style="color:#35e08a; font-size:0.8rem;"><i class="fa-solid fa-check"></i> No open US wildfire events in EONET.</span>');
 
         }).catch(err => {
             console.error("EONET fetch error:", err);
@@ -446,7 +462,7 @@ function fetchWFIGSPerimeters() {
                 layer.bindPopup(`
                     <div style="font-family:'Share Tech Mono';">
                         <strong style="color:#ff3300; font-size:0.95rem;"><i class="fa-solid fa-draw-polygon"></i> ${p.attr_IncidentName || 'Unnamed Perimeter'}</strong><br>
-                        <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                        <hr style="border: 1px solid #2a323e; margin: 6px 0;" />
                         <strong>State:</strong> ${p.attr_POOState || 'N/A'}<br>
                         <strong>Mapped Acreage:</strong> ${acres} acres<br>
                         <strong>Containment:</strong> ${contained}
@@ -537,7 +553,7 @@ function fetchWFIGSData() {
                     marker.bindPopup(`
                         <div style="font-family:'Share Tech Mono';">
                             <strong style="color:#ff3300; font-size:1rem; text-transform:uppercase;"><i class="fa-solid fa-fire-flame-curved"></i> ${name}</strong><br>
-                            <hr style="border: 1px solid #30363d; margin: 6px 0;" />
+                            <hr style="border: 1px solid #2a323e; margin: 6px 0;" />
                             <strong>State/County:</strong> ${state}, ${county || 'N/A'}<br>
                             <strong>Acreage:</strong> ${size} acres<br>
                             <strong>Containment:</strong> ${contained}<br>
@@ -610,7 +626,7 @@ function renderWFIGSList(stateFilter = 'ALL') {
     incidents.sort((a, b) => (b.attr.IncidentSize || 0) - (a.attr.IncidentSize || 0));
 
     if (incidents.length === 0) {
-        target.html(`<span style="color:#00ff55; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE INCIDENTS REPORTED FOR ${stateFilter}</span>`);
+        target.html(`<span style="color:#35e08a; font-size:0.8rem;"><i class="fa-solid fa-check"></i> NO ACTIVE INCIDENTS REPORTED FOR ${stateFilter}</span>`);
         return;
     }
 
@@ -627,11 +643,11 @@ function renderWFIGSList(stateFilter = 'ALL') {
         listHtml += `
             <div class="fire-card wfigs-card" style="border-left-color: #ff3300;" onclick="openWfigsOnMap('${fireKey}')" title="Click to navigate to map position and view perimeter">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#ff9900; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> ${name.toUpperCase()} (${state})</span>
-                    <span style="color:#00ff55; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
+                    <span style="color:#ffb347; font-weight:bold; font-size:0.85rem;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> ${name.toUpperCase()} (${state})</span>
+                    <span style="color:#35e08a; font-size:0.75rem; font-weight:bold;">${contained} Contained</span>
                 </div>
-                <div style="color:#8b949e; font-size:0.7rem; margin-top:3px;">
-                    County: ${county || 'N/A'} | Size: <strong style="color:#ff6600;">${size} acres</strong>
+                <div style="color:#9aa7b8; font-size:0.7rem; margin-top:3px;">
+                    County: ${county || 'N/A'} | Size: <strong style="color:#ff7a1a;">${size} acres</strong>
                 </div>
             </div>`;
     });
@@ -804,13 +820,13 @@ function openMetricsDetailModal(type) {
     if (type === 'acres') {
         title = `${titlePrefix} ACREAGE BURNED ANALYSIS`;
         html = `
-            <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #ff6600;">
-                <div style="font-size:0.95rem; color:#ff9900; font-weight:bold;"><i class="fa-solid fa-chart-pie"></i> TOTAL BURN AREA: ${Math.round(totalAcres).toLocaleString()} ACRES</div>
-                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Reported burn acreage compiled across NIFC Interagency and State Geographic Areas.</div>
+            <div style="margin-bottom:15px; background:#0a0e14; padding:12px; border-radius:4px; border:1px solid #ff7a1a;">
+                <div style="font-size:0.95rem; color:#ffb347; font-weight:bold;"><i class="fa-solid fa-chart-pie"></i> TOTAL BURN AREA: ${Math.round(totalAcres).toLocaleString()} ACRES</div>
+                <div style="font-size:0.75rem; color:#9aa7b8; margin-top:4px;">Reported burn acreage compiled across NIFC Interagency and State Geographic Areas.</div>
             </div>
             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                 <thead>
-                    <tr style="border-bottom:2px solid #30363d; color:#00ffcc;">
+                    <tr style="border-bottom:2px solid #2a323e; color:#2de3c4;">
                         <th style="padding:8px;">STATE / REGION</th>
                         <th style="padding:8px;">ACTIVE FIRES</th>
                         <th style="padding:8px;">TOTAL ACRES BURNED</th>
@@ -821,10 +837,10 @@ function openMetricsDetailModal(type) {
         sortedStates.forEach(st => {
             let pct = totalAcres > 0 ? ((stateMap[st].acres / totalAcres) * 100).toFixed(1) : 0;
             html += `
-                <tr style="border-bottom:1px solid #21262d;">
-                    <td style="padding:8px; font-weight:bold; color:#ff9900;">${st}</td>
+                <tr style="border-bottom:1px solid #151b25;">
+                    <td style="padding:8px; font-weight:bold; color:#ffb347;">${st}</td>
                     <td style="padding:8px;">${stateMap[st].count}</td>
-                    <td style="padding:8px; color:#ff6600; font-weight:bold;">${Math.round(stateMap[st].acres).toLocaleString()}</td>
+                    <td style="padding:8px; color:#ff7a1a; font-weight:bold;">${Math.round(stateMap[st].acres).toLocaleString()}</td>
                     <td style="padding:8px;">${pct}%</td>
                 </tr>`;
         });
@@ -832,32 +848,32 @@ function openMetricsDetailModal(type) {
     } else if (type === 'contained') {
         title = `${titlePrefix} FIRE CONTAINMENT DISTRIBUTION`;
         html = `
-            <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #00ff55;">
-                <div style="font-size:0.95rem; color:#00ff55; font-weight:bold;"><i class="fa-solid fa-shield-halved"></i> CONTAINMENT PROGRESSION BREAKDOWN</div>
-                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">Perimeter containment progress across tracked active wildland fires.</div>
+            <div style="margin-bottom:15px; background:#0a0e14; padding:12px; border-radius:4px; border:1px solid #35e08a;">
+                <div style="font-size:0.95rem; color:#35e08a; font-weight:bold;"><i class="fa-solid fa-shield-halved"></i> CONTAINMENT PROGRESSION BREAKDOWN</div>
+                <div style="font-size:0.75rem; color:#9aa7b8; margin-top:4px;">Perimeter containment progress across tracked active wildland fires.</div>
             </div>
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:15px;">`;
         
         Object.keys(containmentBins).forEach(bin => {
             html += `
-                <div style="background:#0d1117; border:1px solid #30363d; padding:12px; border-radius:4px; text-align:center;">
-                    <div style="font-size:0.7rem; color:#8b949e;">${bin} CONTAINED</div>
-                    <div style="font-size:1.5rem; color:#00ffcc; font-weight:bold; margin:4px 0;">${containmentBins[bin]}</div>
-                    <div style="font-size:0.65rem; color:#8b949e;">Fires</div>
+                <div style="background:#0a0e14; border:1px solid #2a323e; padding:12px; border-radius:4px; text-align:center;">
+                    <div style="font-size:0.7rem; color:#9aa7b8;">${bin} CONTAINED</div>
+                    <div style="font-size:1.5rem; color:#2de3c4; font-weight:bold; margin:4px 0;">${containmentBins[bin]}</div>
+                    <div style="font-size:0.65rem; color:#9aa7b8;">Fires</div>
                 </div>`;
         });
         html += `</div>`;
     } else {
         title = `${titlePrefix} ACTIVE TRACKED INCIDENTS LISTING`;
         html = `
-            <div style="margin-bottom:15px; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #00ffcc;">
-                <div style="font-size:0.95rem; color:#00ffcc; font-weight:bold;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> TOTAL TRACKED INCIDENTS: ${items.length}</div>
-                <div style="font-size:0.75rem; color:#8b949e; margin-top:4px;">NIFC WFIGS active wildland fire incidents sorted by footprint size.</div>
+            <div style="margin-bottom:15px; background:#0a0e14; padding:12px; border-radius:4px; border:1px solid #2de3c4;">
+                <div style="font-size:0.95rem; color:#2de3c4; font-weight:bold;"><i class="fa-solid fa-fire-flame-curved" style="color:#ff3300;"></i> TOTAL TRACKED INCIDENTS: ${items.length}</div>
+                <div style="font-size:0.75rem; color:#9aa7b8; margin-top:4px;">NIFC WFIGS active wildland fire incidents sorted by footprint size.</div>
             </div>
             <div style="max-height:350px; overflow-y:auto;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                     <thead>
-                        <tr style="border-bottom:2px solid #30363d; color:#00ffcc;">
+                        <tr style="border-bottom:2px solid #2a323e; color:#2de3c4;">
                             <th style="padding:6px;">INCIDENT NAME</th>
                             <th style="padding:6px;">STATE</th>
                             <th style="padding:6px;">ACRES</th>
@@ -867,11 +883,11 @@ function openMetricsDetailModal(type) {
                     <tbody>`;
         items.forEach(item => {
             html += `
-                <tr style="border-bottom:1px solid #21262d;">
-                    <td style="padding:6px; color:#ff9900; font-weight:bold;">${item.IncidentName || 'Unnamed'}</td>
+                <tr style="border-bottom:1px solid #151b25;">
+                    <td style="padding:6px; color:#ffb347; font-weight:bold;">${item.IncidentName || 'Unnamed'}</td>
                     <td style="padding:6px;">${item.POOState || 'US'}</td>
-                    <td style="padding:6px; color:#ff6600;">${item.IncidentSize ? Math.round(item.IncidentSize).toLocaleString() : 'N/A'}</td>
-                    <td style="padding:6px; color:#00ff55;">${item.PercentContained !== undefined && item.PercentContained !== null ? item.PercentContained + '%' : 'N/A'}</td>
+                    <td style="padding:6px; color:#ff7a1a;">${item.IncidentSize ? Math.round(item.IncidentSize).toLocaleString() : 'N/A'}</td>
+                    <td style="padding:6px; color:#35e08a;">${item.PercentContained !== undefined && item.PercentContained !== null ? item.PercentContained + '%' : 'N/A'}</td>
                 </tr>`;
         });
         html += `</tbody></table></div>`;
@@ -884,7 +900,7 @@ function renderWildfireChart(topIncidents) {
     const ctx = document.getElementById('wildfireChart').getContext('2d');
     if (wildfireChartInstance) wildfireChartInstance.destroy();
 
-    Chart.defaults.color = '#8b949e'; Chart.defaults.font.family = "'Share Tech Mono', monospace";
+    Chart.defaults.color = '#9aa7b8'; Chart.defaults.font.family = "'Share Tech Mono', monospace";
     const labels = topIncidents.map(i => i.attributes.IncidentName || 'Unnamed');
     const sizes = topIncidents.map(i => i.attributes.IncidentSize || 0);
 
@@ -893,12 +909,12 @@ function renderWildfireChart(topIncidents) {
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [{ label: 'Acreage', data: sizes, backgroundColor: 'rgba(255, 102, 0, 0.65)', borderColor: '#ff6600', borderWidth: 1 }]
+            datasets: [{ label: 'Acreage', data: sizes, backgroundColor: 'rgba(255, 102, 0, 0.65)', borderColor: '#ff7a1a', borderWidth: 1 }]
         },
         options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { x: { grid: { color: '#21262d' } }, y: { grid: { color: '#21262d' }, ticks: { font: { size: 9 } } } }
+            scales: { x: { grid: { color: '#151b25' } }, y: { grid: { color: '#151b25' }, ticks: { font: { size: 9 } } } }
         }
     });
 }
@@ -919,10 +935,10 @@ function fetchNWSAlerts() {
                     html += `
                         <div class="fire-card" style="border-left-color: #ff3333;" onclick="openAlertDetails('${f.properties.id}')">
                             <div style="color: #ff5555; font-weight: bold; font-size:0.78rem;">${f.properties.event.toUpperCase()}</div>
-                            <div style="color:#8b949e; font-size:0.7rem; margin-top:2px;">${f.properties.areaDesc}</div>
+                            <div style="color:#9aa7b8; font-size:0.7rem; margin-top:2px;">${f.properties.areaDesc}</div>
                         </div>`;
                 });
-            } else { html = "<span style='color:#00ff55; font-size:0.8rem;'><i class='fa-solid fa-check'></i> NO ACTIVE RED FLAG WARNINGS</span>"; }
+            } else { html = "<span style='color:#35e08a; font-size:0.8rem;'><i class='fa-solid fa-check'></i> NO ACTIVE RED FLAG WARNINGS</span>"; }
 
             if (alertCount > previousAlertCount && alertCount > 0) playAlertSound();
             previousAlertCount = alertCount; container.html(html);
@@ -932,9 +948,9 @@ function fetchNWSAlerts() {
 function openAlertDetails(id) {
     const alert = globalAlertsCache[id];
     if (!alert) return;
-    let body = `<div style="color:#ff5555; font-weight:bold; margin-bottom:10px; border-bottom:1px solid #30363d; padding-bottom:8px;">${alert.headline || alert.event}</div>`;
-    body += `<div style="color:#8b949e; margin-bottom:8px;"><strong>Affected Areas:</strong> ${alert.areaDesc}</div>`;
-    body += `<div style="color:#fff; background:#0d1117; padding:12px; border-radius:4px; border:1px solid #21262d; font-family:monospace; font-size:0.85rem; white-space:pre-wrap;">${alert.description}</div>`;
+    let body = `<div style="color:#ff5555; font-weight:bold; margin-bottom:10px; border-bottom:1px solid #2a323e; padding-bottom:8px;">${alert.headline || alert.event}</div>`;
+    body += `<div style="color:#9aa7b8; margin-bottom:8px;"><strong>Affected Areas:</strong> ${alert.areaDesc}</div>`;
+    body += `<div style="color:#fff; background:#0a0e14; padding:12px; border-radius:4px; border:1px solid #151b25; font-family:monospace; font-size:0.85rem; white-space:pre-wrap;">${alert.description}</div>`;
     openFloatingModal("NWS FIRE ADVISORY DETAILS", body);
 }
 
@@ -952,23 +968,23 @@ function fetchAirQualityData() {
     );
 
     Promise.all(promises).then(results => {
-        let html = `<div style="font-size:0.75rem; color:#ffcc00; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> CLICK AQI SENSOR CARD FOR DETAILS</div>`;
+        let html = `<div style="font-size:0.75rem; color:#ffcc33; font-weight:bold; margin-bottom:8px;"><i class="fa-solid fa-wind"></i> CLICK AQI SENSOR CARD FOR DETAILS</div>`;
         html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
         let hasData = false;
         
         results.forEach((item) => {
             if (item.data && item.data.length > 0) {
                 hasData = true; const regionName = item.meta.name;
-                html += `<div style="background:#161b22; border:1px solid #30363d; padding:8px; border-radius:3px;">`;
-                html += `<div style="font-size:0.72rem; color:#00ffcc; font-weight:bold; margin-bottom:4px;">${regionName}</div>`;
+                html += `<div style="background:#10151d; border:1px solid #2a323e; padding:8px; border-radius:3px;">`;
+                html += `<div style="font-size:0.72rem; color:#2de3c4; font-weight:bold; margin-bottom:4px;">${regionName}</div>`;
                 html += `<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:4px;">`;
                 
                 item.data.forEach(p => {
-                    const color = p.AQI > 150 ? '#ff0000' : p.AQI > 100 ? '#ff7e00' : p.AQI > 50 ? '#ffcc00' : '#00ff55';
+                    const color = p.AQI > 150 ? '#ff0000' : p.AQI > 100 ? '#ff7e00' : p.AQI > 50 ? '#ffcc33' : '#35e08a';
                     const payloadString = encodeURIComponent(JSON.stringify({ region: regionName, state: item.meta.state, parameter: p.ParameterName, aqi: p.AQI, category: p.Category ? p.Category.Name : 'N/A', site: p.ReportingArea || 'Unknown Sensor' }));
                     html += `
                         <div class="aqi-interactive-card" style="text-align:center; border-radius:2px;" onclick="openAQIDetails('${payloadString}')">
-                            <div style="font-size:0.6rem; color:#8b949e;">${p.ParameterName}</div>
+                            <div style="font-size:0.6rem; color:#9aa7b8;">${p.ParameterName}</div>
                             <div style="font-size:1.1rem; color:${color}; font-weight:bold;">${p.AQI}</div>
                             <div style="font-size:0.55rem; color:${color};">${p.Category ? p.Category.Name : ''}</div>
                         </div>`;
@@ -977,19 +993,19 @@ function fetchAirQualityData() {
             }
         });
 
-        if (!hasData) html += `<div style="color:#8b949e; font-size:0.75rem;">No active multi-state particulate feeds responding.</div>`;
+        if (!hasData) html += `<div style="color:#9aa7b8; font-size:0.75rem;">No active multi-state particulate feeds responding.</div>`;
         $('#aqi-container-target').html(html + `</div>`);
     }).catch(() => $('#aqi-container-target').html('<span style="color:#ff5555; font-size:0.8rem;">AirNow multi-state feed unavailable</span>'));
 }
 
 function openAQIDetails(encodedStr) {
     const info = JSON.parse(decodeURIComponent(encodedStr));
-    let body = `<div style="color:#ff9900; font-weight:bold; font-size:1.1rem; margin-bottom:10px; border-bottom:1px solid #30363d; padding-bottom:8px;">Air Quality Monitor Report: ${info.region}</div>`;
+    let body = `<div style="color:#ffb347; font-weight:bold; font-size:1.1rem; margin-bottom:10px; border-bottom:1px solid #2a323e; padding-bottom:8px;">Air Quality Monitor Report: ${info.region}</div>`;
     body += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px; font-size:0.85rem;">
         <div><strong>Reporting Area:</strong> ${info.site}</div><div><strong>Parameter:</strong> ${info.parameter}</div>
-        <div><strong>AQI Index:</strong> <span style="color:#ff6600; font-weight:bold;">${info.aqi}</span></div><div><strong>Category:</strong> ${info.category}</div>
+        <div><strong>AQI Index:</strong> <span style="color:#ff7a1a; font-weight:bold;">${info.aqi}</span></div><div><strong>Category:</strong> ${info.category}</div>
     </div>`;
-    body += `<div style="color:#00ffcc; background:#161b22; padding:12px; border-radius:4px; border:1px solid #30363d; font-family:monospace; font-size:0.85rem;">
+    body += `<div style="color:#2de3c4; background:#10151d; padding:12px; border-radius:4px; border:1px solid #2a323e; font-family:monospace; font-size:0.85rem;">
         <i class="fa-solid fa-wind"></i> <strong>DATA SOURCE CONFIRMATION:</strong> Pulled securely from EPA AirNow API for <strong>${info.state}</strong>.
     </div>`;
     openFloatingModal(`AQI TELEMETRY: ${info.parameter} (${info.region})`, body);
@@ -1007,6 +1023,8 @@ setInterval(() => {
     if (countdownVal <= 0) { countdownVal = 120; fetchAllData(); }
     const targetTimer = document.getElementById('countdown');
     if (targetTimer) targetTimer.innerText = countdownVal;
+    const ring = document.getElementById('timerRing');
+    if (ring) ring.style.setProperty('--pct', Math.round((countdownVal / 120) * 100));
 }, 1000);
 
 window.addEventListener('resize', () => { layout.updateSize(); });
